@@ -68,7 +68,7 @@ int main(int argc, char *argv[])
     // Set input mode (non-canonical, no echo,...)
     newtio.c_lflag = 0;
     newtio.c_cc[VTIME] = 0; // Inter-character timer unused
-    newtio.c_cc[VMIN] = 5;  // Blocking read until 5 chars received
+    newtio.c_cc[VMIN] = 1;  // Blocking read until 5 chars received
 
     // VTIME e VMIN should be changed in order to protect with a
     // timeout the reception of the following character(s)
@@ -90,19 +90,18 @@ int main(int argc, char *argv[])
     printf("New termios structure set\n");
 
     // Create string to send
-    unsigned char buf[BUF_SIZE] = {0};
+    unsigned char buf[BUF_SIZE];
 
-    for (int i = 0; i < BUF_SIZE; i++)
-    {
-        buf[i] = 'a' + i % 26;
-    }
+    gets(buf); //para obter a linha do stdin
+    buf[strlen(buf)] = '\0';
 
     // In non-canonical mode, '\n' does not end the writing.
     // Test this condition by placing a '\n' in the middle of the buffer.
     // The whole buffer must be sent even with the '\n'.
-    buf[5] = '\n';
+    //buf[5] = '\n';
 
-    int bytes = write(fd, buf, BUF_SIZE);
+    
+    int bytes = write(fd, buf, strlen(buf)+1);
     printf("%d bytes written\n", bytes);
 
     // Wait until all bytes have been written to the serial port

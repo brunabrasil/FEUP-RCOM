@@ -66,8 +66,8 @@ int main(int argc, char *argv[])
 
     // Set input mode (non-canonical, no echo,...)
     newtio.c_lflag = 0;
-    newtio.c_cc[VTIME] = 0; // Inter-character timer unused
-    newtio.c_cc[VMIN] = 5;  // Blocking read until 5 chars received
+    newtio.c_cc[VTIME] = 1; // Inter-character timer unused
+    newtio.c_cc[VMIN] = 0;  // Blocking read until 5 chars received
 
     // VTIME e VMIN should be changed in order to protect with a
     // timeout the reception of the following character(s)
@@ -91,20 +91,26 @@ int main(int argc, char *argv[])
     // Loop for input
     unsigned char buf[BUF_SIZE + 1] = {0}; // +1: Save space for the final '\0' char
 
+    //lê os caracteres (um a um) da porta série, em modo não canónico, até receber o caracter de fim de string (‘\0’);
     while (STOP == FALSE)
     {
         // Returns after 5 chars have been input
         int bytes = read(fd, buf, BUF_SIZE);
-        buf[bytes] = '\0'; // Set end of string to '\0', so we can printf
+        //buf[bytes] = '\0'; // Set end of string to '\0', so we can printf
 
         printf(":%s:%d\n", buf, bytes);
-        if (buf[0] == 'z')
+        if (buf[bytes] == '\0')
             STOP = TRUE;
     }
 
     // The while() cycle should be changed in order to respect the specifications
     // of the protocol indicated in the Lab guide
-
+    
+        // If I want the reader to send a sentence to the writer
+    //int bytes = write(fd, buf, strlen(buf)+1);
+    //printf("%d bytes written\n", bytes);
+    
+    sleep(1);
     // Restore the old port settings
     if (tcsetattr(fd, TCSANOW, &oldtio) == -1)
     {

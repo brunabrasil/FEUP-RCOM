@@ -136,6 +136,7 @@ int main(int argc, char *argv[])
     char b; 
 
     while(alarmCount < 4){
+
         state = START_STATE;
         STOP = FALSE;
 
@@ -144,22 +145,99 @@ int main(int argc, char *argv[])
         /*if (bytes < 0){
             printf("Erro %s", strerror(errno));
             */
+
         alarm(3); // 3s para escrever
         
         int b_msg= read(fd, &b,1);
+
+        if(b_msg == 0){
+            break;
+        }
             
-            received[i] = b;
-            i++        
-           printf("Read: %c\0", b);
+        received[i] = b;
+        i++;        
+        printf("Read: %c\0", b);
 
-                 
+        while (STOP == FALSE){
 
-        
+            switch (state) {
 
+                case START_STATE:
+
+                    // se encontrar FLAG_RCV passa pra o proximo state
+                    if(b == FLAG) state = FLAG_RCV;
+                    break;
+
+                case FLAG_RCV:
+
+                    // se encontrar A_RCV parra pro proximo state
+                    if(b == A) state = A_RCV;
+
+                    // se encontrar a mesma flag, FLAG_RCV, fica no mesmo estado
+                    else if (b == FLAG) state = FLAG_RCV;
+
+                    // se encontrar qualquer outra flag, volta para o estado START_STATE
+                    else state = START_STATE;
+
+                    break;
+
+                case A_RCV:
+
+                    if(b == C) state = C_RCV;
+                    else if (b == FLAG) state = FLAG_RCV;
+                    else state = START_STATE;
+
+                    break;
+
+                case C_RCV:
+
+                    // Para o read em vez de bcc_ua é bcc_set
+                    if(b == BCC_UA) state = BCC;
+                    else if (b == FLAG) state = FLAG_RCV;
+                    else state = START_STATE;
+
+                    break;
+
+                case BCC:
+
+                    if (b == FLAG) state = STOP_STATE;
+                    else state = START_STATE;
+
+                    break;
+
+                case STOP_STATE:
+
+                    STOP = TRUE;
+
+                    break;
+                
+                default:
+                    break;
+            }
+        }
+
+        i = 0;
+
+        if (state == STOP_STATE){
+            break;
+        }
+    }
+    
+    // teve mais tentativas do que suposto
+    if(alarmCount == 4){
+        printf("ERRO NO UA\n");
     }
 
+    printf("Ending\n");
 
+    // dar print à string recebida
 
+    int j = 0;
+    while (j < BUF_SIZE){
+        printf("%u ", received[j]);
+        j++;
+    }
+   
     // CHAMAR O HANDLER PARA COMEÇAR A CONTAGEM DE TENTATIVAS
     // EUNQUANTO NÃO ATINGIRMOS A CONTAGEM VAMOS ESCREVER COM AJUDA DA STATE MACHINE AGAIN
     // SE A CONTAGEM ATINGIR 4S, O PROGRAMA TEVE ERRO 

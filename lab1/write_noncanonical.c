@@ -10,6 +10,7 @@
 #include <sys/stat.h>
 #include <termios.h>
 #include <unistd.h>
+#include <signal.h>
 #include "macros.h"
 
 // Baudrate settings are defined in <asm/termbits.h>, which is
@@ -148,17 +149,17 @@ int main(int argc, char *argv[])
 
         alarm(3); // 3s para escrever
         
-        int b_rcv= read(fd, &b,1);
-
-        if(b_rcv == 0){
-            break;
-        }
-            
-        received[i] = b;
-        i++;        
-        printf("Read: %c\0", b);
-
         while (STOP == FALSE){
+
+            int b_rcv= read(fd, &b,1);
+
+            if(b_rcv == 0){
+                break;
+            }
+                
+            received[i] = b;
+            i++;        
+            printf("Read: %c\0", b);
 
             switch (state) {
 

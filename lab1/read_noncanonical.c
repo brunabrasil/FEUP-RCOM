@@ -196,6 +196,8 @@ int main(int argc, char *argv[])
 
         unsigned char buf[BUF_SIZE] = {0};
         
+        // caso a dizer que vai mandar bem. 
+
         buf[0] = FLAG;
         buf[1] = A;
         buf[2] = C_UA;
@@ -206,7 +208,7 @@ int main(int argc, char *argv[])
         int b_send = write(fd, buf, BUF_SIZE);
 
         printf("%d bytes written\n", b_send);
-        if (b_send < 0) printf("Erro %s", strerror(errno));
+        if (b_send < 0) printf("Erro %d", 3);
 
         num_tries++;
         STOP = FALSE;

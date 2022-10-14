@@ -10,6 +10,7 @@
 #include <sys/stat.h>
 #include <termios.h>
 #include <unistd.h>
+#include "macros.h"
 
 // Baudrate settings are defined in <asm/termbits.h>, which is
 // included by <termios.h>
@@ -19,9 +20,25 @@
 #define FALSE 0
 #define TRUE 1
 
-#define BUF_SIZE 256
+// Mudar buff_size para 256 mais tarde...
+#define BUF_SIZE 5
 
 volatile int STOP = FALSE;
+
+int alarmEnabled = FALSE;
+int alarmCount = 0;
+
+// Alarm function handler
+void alarmHandler(int signal)
+{
+    alarmEnabled = FALSE;
+    alarmCount++;
+
+    // STOP = TRUE;
+
+    printf("Alarm #%d\n", alarmCount);
+}
+
 
 int main(int argc, char *argv[])
 {
@@ -40,7 +57,7 @@ int main(int argc, char *argv[])
 
     // Open serial port device for reading and writing, and not as controlling tty
     // because we don't want to get killed if linenoise sends CTRL-C.
-    int fd = open(serialPortName, O_RDWR | O_NOCTTY);
+    int fd = open(serialPortName, O_RDWR | O_NOCTTY | O_NONBLOCK);
 
     if (fd < 0)
     {
@@ -67,8 +84,8 @@ int main(int argc, char *argv[])
 
     // Set input mode (non-canonical, no echo,...)
     newtio.c_lflag = 0;
-    newtio.c_cc[VTIME] = 0; // Inter-character timer unused
-    newtio.c_cc[VMIN] = 1;  // Blocking read until 5 chars received
+    newtio.c_cc[VTIME] = 1; // Inter-character timer unused
+    newtio.c_cc[VMIN] = 0;  // Blocking read until 5 chars received
 
     // VTIME e VMIN should be changed in order to protect with a
     // timeout the reception of the following character(s)
@@ -89,23 +106,64 @@ int main(int argc, char *argv[])
 
     printf("New termios structure set\n");
 
-    // Create string to send
-    unsigned char buf[BUF_SIZE];
 
-    gets(buf); //para obter a linha do stdin
-    buf[strlen(buf)] = '\0';
+// ------------- CRIAR A TRAMA COM AS FLAGS CORRETAS ----
+
+    // Create frame to send
+    unsigned char buf[BUF_SIZE] = {0};
+
+    buf[0] = FLAG;
+    buf[1] = A;
+    buf[2] = C_SET;
+    buf[3] = BCC_SET;
+    buf[4] = FLAG;
 
     // In non-canonical mode, '\n' does not end the writing.
     // Test this condition by placing a '\n' in the middle of the buffer.
     // The whole buffer must be sent even with the '\n'.
     //buf[5] = '\n';
 
-    
-    int bytes = write(fd, buf, strlen(buf)+1);
-    printf("%d bytes written\n", bytes);
+    int bytes = 0;
+    enum setState state;
 
     // Wait until all bytes have been written to the serial port
     sleep(1);
+
+    (void)signal(SIGALRM, alarmHandler); // set ao alarme
+
+    unsigned char received[BUF_SIZE] = {0}; // string to store message received
+    int i=0;
+    char b; 
+
+    while(alarmCount < 4){
+        state = START_STATE;
+        STOP = FALSE;
+
+        bytes = write(fd, buf, BUF_SIZE);
+        printf("%d bytes written\n", bytes);
+        /*if (bytes < 0){
+            printf("Erro %s", strerror(errno));
+            */
+        alarm(3); // 3s para escrever
+        
+        int b_msg= read(fd, &b,1);
+            
+            received[i] = b;
+            i++        
+           printf("Read: %c\0", b);
+
+                 
+
+        
+
+    }
+
+
+
+    // CHAMAR O HANDLER PARA COMEÇAR A CONTAGEM DE TENTATIVAS
+    // EUNQUANTO NÃO ATINGIRMOS A CONTAGEM VAMOS ESCREVER COM AJUDA DA STATE MACHINE AGAIN
+    // SE A CONTAGEM ATINGIR 4S, O PROGRAMA TEVE ERRO 
+    // SENÃO, IMPRIMIMOS E TA TUDO CERTO
 
     // Restore the old port settings
     if (tcsetattr(fd, TCSANOW, &oldtio) == -1)

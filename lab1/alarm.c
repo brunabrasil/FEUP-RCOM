@@ -9,6 +9,8 @@
 #define FALSE 0
 #define TRUE 1
 
+volatile int STOP = FALSE;
+
 int alarmEnabled = FALSE;
 int alarmCount = 0;
 
@@ -18,24 +20,25 @@ void alarmHandler(int signal)
     alarmEnabled = FALSE;
     alarmCount++;
 
+    STOP = TRUE;
+
     printf("Alarm #%d\n", alarmCount);
 }
 
-int main()
-{
-    // Set alarm function handler
+void setAlarmHandler(){
     (void)signal(SIGALRM, alarmHandler);
 
     while (alarmCount < 4)
     {
         if (alarmEnabled == FALSE)
         {
+
             alarm(3); // Set alarm to be triggered in 3s
             alarmEnabled = TRUE;
+
+            //chamar state machine
         }
     }
 
     printf("Ending program\n");
-
-    return 0;
 }

@@ -11,6 +11,9 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include "macros.h"
+
+
 // Baudrate settings are defined in <asm/termbits.h>, which is
 // included by <termios.h>
 #define BAUDRATE B38400
@@ -88,6 +91,7 @@ int main(int argc, char *argv[])
 
     printf("New termios structure set\n");
 
+//------- APAGAR ISTO, INSERIR A STATE MACHINE
     // Loop for input
     unsigned char buf[BUF_SIZE + 1] = {0}; // +1: Save space for the final '\0' char
 
@@ -102,6 +106,21 @@ int main(int argc, char *argv[])
         if (buf[bytes] == '\0')
             STOP = TRUE;
     }
+
+// ------------------ STATE MACHINE
+
+ // Depois da state machine temos de dar print à string recebida e criar um novo buffer para mandá-la de volta (buf2)
+// escrevemos no buffer a string recebida e enviamos. a partir daqui o write_non canonical faz coisas.
+
+
+
+
+
+
+
+
+
+
 
     // The while() cycle should be changed in order to respect the specifications
     // of the protocol indicated in the Lab guide

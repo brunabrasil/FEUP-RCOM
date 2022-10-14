@@ -35,7 +35,7 @@ void alarmHandler(int signal)
     alarmEnabled = FALSE;
     alarmCount++;
 
-    // STOP = TRUE;
+    //STOP = TRUE;
 
     printf("Alarm #%d\n", alarmCount);
 }
@@ -133,7 +133,7 @@ int main(int argc, char *argv[])
     (void)signal(SIGALRM, alarmHandler); // set ao alarme
 
     unsigned char received[BUF_SIZE] = {0}; // string to store message received
-    int i=0;
+    
     char b; 
 
     while(alarmCount < 4){
@@ -148,18 +148,18 @@ int main(int argc, char *argv[])
             */
 
         alarm(3); // 3s para escrever
-        
+        int i=0;
         while (STOP == FALSE){
 
-            int b_rcv= read(fd, &b,1);
+            int b_rcv= read(fd, &b, 1);
 
             if(b_rcv == 0){
                 break;
             }
-                
+            
             received[i] = b;
             i++;        
-            //printf("Read in emissor: %c\n", b);
+            printf("Read in emissor: %x\n", b);
 
             switch (state) {
 
@@ -226,6 +226,7 @@ int main(int argc, char *argv[])
         if (state == STOP_STATE){
             break;
         }
+        alarmCount++;
     }
     
     // teve mais tentativas do que suposto

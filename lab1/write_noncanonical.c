@@ -159,7 +159,7 @@ int main(int argc, char *argv[])
                 
             received[i] = b;
             i++;        
-            printf("Read: %c\0", b);
+            //printf("Read in emissor: %c\n", b);
 
             switch (state) {
 
@@ -197,12 +197,15 @@ int main(int argc, char *argv[])
                     if(b == BCC_UA) state = BCC;
                     else if (b == FLAG) state = FLAG_RCV;
                     else state = START_STATE;
-
+//wsl 
                     break;
 
                 case BCC:
 
-                    if (b == FLAG) state = STOP_STATE;
+                    if (b == FLAG){
+                        state = STOP_STATE;
+                        STOP = TRUE;
+                    }
                     else state = START_STATE;
 
                     break;

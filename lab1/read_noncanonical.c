@@ -91,25 +91,6 @@ int main(int argc, char *argv[])
     }
 
     printf("New termios structure set\n");
-    
-//------- APAGAR ISTO, INSERIR A STATE MACHINE
-
-    // Loop for input
-    unsigned char buf[BUF_SIZE + 1] = {0}; // +1: Save space for the final '\0' char
-
-    //lê os caracteres (um a um) da porta série, em modo não canónico, até receber o caracter de fim de string (‘\0’);
-    while (STOP == FALSE)
-    {
-        // Returns after 5 chars have been input
-        int bytes = read(fd, buf, BUF_SIZE);
-        //buf[bytes] = '\0'; // Set end of string to '\0', so we can printf
-
-        printf(":%s:%d\n", buf, bytes);
-        if (buf[bytes] == '\0')
-            STOP = TRUE;
-    }
-
-// ------------------ STATE MACHINE
 
  // Depois da state machine temos de dar print à string recebida e criar um novo buffer para mandá-la de volta (buf2)
 // escrevemos no buffer a string recebida e enviamos. a partir daqui o write_non canonical faz coisas.
@@ -133,7 +114,7 @@ int main(int argc, char *argv[])
 
             received[i] = b;
             i++;        
-            printf("Read: %c\0", b);
+            printf("Read in recetor: %c\n", b);
 
             switch (state) {
 

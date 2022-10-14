@@ -127,7 +127,7 @@ int main(int argc, char *argv[])
     enum setState state;
 
     // Wait until all bytes have been written to the serial port
-    sleep(1);
+    // sleep(1);
 
     (void)signal(SIGALRM, alarmHandler); // set ao alarme
 
@@ -148,9 +148,9 @@ int main(int argc, char *argv[])
 
         alarm(3); // 3s para escrever
         
-        int b_msg= read(fd, &b,1);
+        int b_rcv= read(fd, &b,1);
 
-        if(b_msg == 0){
+        if(b_rcv == 0){
             break;
         }
             
@@ -183,7 +183,8 @@ int main(int argc, char *argv[])
 
                 case A_RCV:
 
-                    if(b == C) state = C_RCV;
+                    // Para o read em vez de c_ua é c_set
+                    if(b == C_UA) state = C_RCV;
                     else if (b == FLAG) state = FLAG_RCV;
                     else state = START_STATE;
 
@@ -231,7 +232,6 @@ int main(int argc, char *argv[])
     printf("Ending\n");
 
     // dar print à string recebida
-
     int j = 0;
     while (j < BUF_SIZE){
         printf("%u ", received[j]);

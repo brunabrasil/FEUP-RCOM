@@ -22,7 +22,8 @@
 #define FALSE 0
 #define TRUE 1
 
-#define BUF_SIZE 256
+#define BUF_SIZE 5 //256
+#define TRIES 4
 
 volatile int STOP = FALSE;
 
@@ -69,8 +70,8 @@ int main(int argc, char *argv[])
 
     // Set input mode (non-canonical, no echo,...)
     newtio.c_lflag = 0;
-    newtio.c_cc[VTIME] = 1; // Inter-character timer unused
-    newtio.c_cc[VMIN] = 0;  // Blocking read until 5 chars received
+    newtio.c_cc[VTIME] = 0; // Inter-character timer unused
+    newtio.c_cc[VMIN] = 1;  // Blocking read until 5 chars received
 
     // VTIME e VMIN should be changed in order to protect with a
     // timeout the reception of the following character(s)
@@ -90,8 +91,9 @@ int main(int argc, char *argv[])
     }
 
     printf("New termios structure set\n");
-
+    
 //------- APAGAR ISTO, INSERIR A STATE MACHINE
+
     // Loop for input
     unsigned char buf[BUF_SIZE + 1] = {0}; // +1: Save space for the final '\0' char
 
@@ -112,24 +114,115 @@ int main(int argc, char *argv[])
  // Depois da state machine temos de dar print à string recebida e criar um novo buffer para mandá-la de volta (buf2)
 // escrevemos no buffer a string recebida e enviamos. a partir daqui o write_non canonical faz coisas.
 
+    int num_tries = 0;
 
+    while(num_tries < TRIES){
 
+        unsigned char received[BUF_SIZE] = {0}; // string to store message received
+        enum setState state = START_STATE;
+        int i=0;
+        char b;
+        
+        while (STOP == FALSE){
 
+            int b_rcv= read(fd, &b,1);
 
+            if(b_rcv == 0){
+                break;
+            }
 
+            received[i] = b;
+            i++;        
+            printf("Read: %c\0", b);
 
+            switch (state) {
 
+                case START_STATE:
 
+                    // se encontrar FLAG_RCV passa pra o proximo state
+                    if(b == FLAG) state = FLAG_RCV;
+                    break;
+
+                case FLAG_RCV:
+
+                    // se encontrar A_RCV parra pro proximo state
+                    if(b == A) state = A_RCV;
+
+                    // se encontrar a mesma flag, FLAG_RCV, fica no mesmo estado
+                    else if (b == FLAG) state = FLAG_RCV;
+
+                    // se encontrar qualquer outra flag, volta para o estado START_STATE
+                    else state = START_STATE;
+
+                    break;
+
+                case A_RCV:
+
+                    // Para o read em vez de c_ua é c_set
+                    if(b == C_SET) state = C_RCV;
+                    else if (b == FLAG) state = FLAG_RCV;
+                    else state = START_STATE;
+
+                    break;
+
+                case C_RCV:
+
+                    // Para o read em vez de bcc_ua é bcc_set
+                    if(b == BCC_SET) state = BCC;
+                    else if (b == FLAG) state = FLAG_RCV;
+                    else state = START_STATE;
+
+                    break;
+
+                case BCC:
+
+                    if (b == FLAG) state = STOP_STATE;
+                    else state = START_STATE;
+
+                    break;
+
+                case STOP_STATE:
+
+                    STOP = TRUE;
+
+                    break;
+                
+                default:
+                    break;
+            }
+        }
+
+        printf("Received: %s\n", received);
+
+        unsigned char buf[BUF_SIZE] = {0};
+        
+        buf[0] = FLAG;
+        buf[1] = A;
+        buf[2] = C_UA;
+        buf[3] = BCC_UA;
+        buf[4] = FLAG;
+        
+
+        int b_send = write(fd, buf, BUF_SIZE);
+
+        printf("%d bytes written\n", b_send);
+        if (b_send < 0) printf("Erro %s", strerror(errno));
+
+        num_tries++;
+        STOP = FALSE;
+
+        sleep(1);
+    }
 
 
     // The while() cycle should be changed in order to respect the specifications
     // of the protocol indicated in the Lab guide
     
-        // If I want the reader to send a sentence to the writer
+    // If I want the reader to send a sentence to the writer
     //int bytes = write(fd, buf, strlen(buf)+1);
     //printf("%d bytes written\n", bytes);
     
-    sleep(1);
+   
     // Restore the old port settings
     if (tcsetattr(fd, TCSANOW, &oldtio) == -1)
     {

@@ -35,7 +35,7 @@ void alarmHandler(int signal)
     alarmEnabled = FALSE;
     alarmCount++;
 
-    //STOP = TRUE;
+    STOP = TRUE;
 
     printf("Alarm #%d\n", alarmCount);
 }
@@ -112,13 +112,17 @@ int main(int argc, char *argv[])
 
     // Create frame to send
     unsigned char buf[BUF_SIZE] = {0};
-
+    
     buf[0] = FLAG;
     buf[1] = A;
     buf[2] = C_SET;
     buf[3] = BCC_SET;
     buf[4] = FLAG;
+    
+    
+    
 
+    printf("Sending: %x %x %x %x %x\n", buf[0], buf[1], buf[2], buf[3], buf[4]);
     // In non-canonical mode, '\n' does not end the writing.
     // Test this condition by placing a '\n' in the middle of the buffer.
     // The whole buffer must be sent even with the '\n'.
@@ -132,7 +136,7 @@ int main(int argc, char *argv[])
 
     (void)signal(SIGALRM, alarmHandler); // set ao alarme
 
-    unsigned char received[BUF_SIZE] = {0}; // string to store message received
+    unsigned char received[BUF_SIZE]; // string to store message received
     
     char b; 
 
@@ -149,17 +153,21 @@ int main(int argc, char *argv[])
 
         alarm(3); // 3s para escrever
         int i=0;
+        
         while (STOP == FALSE){
 
             int b_rcv= read(fd, &b, 1);
-
-            if(b_rcv == 0){
+            /*if(b_rcv == 0){
                 break;
             }
+            */
+            if(b != 0){
+                received[i] = b;
+                i++;        
+                printf("Read in emissor: %x\n", b);
+            }
             
-            received[i] = b;
-            i++;        
-            printf("Read in emissor: %x\n", b);
+            
 
             switch (state) {
 
@@ -226,22 +234,23 @@ int main(int argc, char *argv[])
         if (state == STOP_STATE){
             break;
         }
-        alarmCount++;
+        
     }
-    
+    //como q se incrementa o alarmCount? as tentativas
     // teve mais tentativas do que suposto
     if(alarmCount == 4){
         printf("ERRO NO UA\n");
     }
-
-    printf("Ending\n");
-
-    // dar print à string recebida
+    printf("Received: ");
     int j = 0;
     while (j < BUF_SIZE){
-        printf("%u ", received[j]);
+        printf("%x ", received[j]);
         j++;
     }
+    printf("\nEnding\n");
+
+    // dar print à string recebida
+    
    
     // CHAMAR O HANDLER PARA COMEÇAR A CONTAGEM DE TENTATIVAS
     // EUNQUANTO NÃO ATINGIRMOS A CONTAGEM VAMOS ESCREVER COM AJUDA DA STATE MACHINE AGAIN

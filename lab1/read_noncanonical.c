@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
 
             int b_rcv= read(fd, &b,1);
 
-            if(b_rcv == 0){
+            if(b_rcv == 0){ //isso quer dizer q n recebeu nada?
                 break;
             }
 
@@ -176,8 +176,8 @@ int main(int argc, char *argv[])
             }
         }
 
-        printf("Received: %s\n", received);
-
+        //printf("Received: %x\n", received);
+        printf("Received: %x %x %x %x %x\n", received[0], received[1], received[2], received[3], received[4]);
         unsigned char buf[BUF_SIZE] = {0};
         
         // caso a dizer que vai mandar bem. 
@@ -191,6 +191,8 @@ int main(int argc, char *argv[])
 
         int b_send = write(fd, buf, BUF_SIZE);
 
+        printf("Sending: %x %x %x %x %x\n", buf[0], buf[1], buf[2], buf[3], buf[4]);
+
         printf("%d bytes written\n", b_send);
         if (b_send < 0) printf("Erro %d", 3);
 
@@ -199,6 +201,7 @@ int main(int argc, char *argv[])
 
         sleep(1);
     }
+
 
 
     // The while() cycle should be changed in order to respect the specifications
@@ -220,3 +223,6 @@ int main(int argc, char *argv[])
 
     return 0;
 }
+
+//duvida
+//numtries ?? oq é considerado uma tentativa? 

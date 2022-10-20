@@ -111,7 +111,7 @@ int main(int argc, char *argv[])
 // ------------- CRIAR A TRAMA COM AS FLAGS CORRETAS ----
 
     // Create frame to send
-    unsigned char buf[BUF_SIZE] = {0};
+    unsigned char buf[BUF_SIZE];
     
     buf[0] = FLAG;
     buf[1] = A;

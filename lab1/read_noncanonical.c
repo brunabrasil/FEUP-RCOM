@@ -189,12 +189,12 @@ int main(int argc, char *argv[])
         buf[4] = FLAG;
         
 
-        int b_send = write(fd, buf, BUF_SIZE);
+        //int b_send = write(fd, buf, BUF_SIZE);
 
         printf("Sending: %x %x %x %x %x\n", buf[0], buf[1], buf[2], buf[3], buf[4]);
 
-        printf("%d bytes written\n", b_send);
-        if (b_send < 0) printf("Erro %d", 3);
+        //printf("%d bytes written\n", b_send);
+        //if (b_send < 0) printf("Erro %d", 3);
 
         num_tries++;
         STOP = FALSE;

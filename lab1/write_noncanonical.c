@@ -120,8 +120,6 @@ int main(int argc, char *argv[])
     buf[4] = FLAG;
     
     
-    
-
     printf("Sending: %x %x %x %x %x\n", buf[0], buf[1], buf[2], buf[3], buf[4]);
     // In non-canonical mode, '\n' does not end the writing.
     // Test this condition by placing a '\n' in the middle of the buffer.

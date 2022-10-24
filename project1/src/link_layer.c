@@ -159,7 +159,7 @@ enum setState stateMachineDISC(unsigned char b, enum setState state){
     case FLAG_RCV:
         // se encontrar A_RCV parra pro proximo state
         if(b == A) state = A_RCV;
-
+        else if(b == A_RX) state = A_RCV;
         // se encontrar a mesma flag, FLAG_RCV, fica no mesmo estado
         else if (b == FLAG) state = FLAG_RCV;
 
@@ -209,7 +209,7 @@ int llopen(LinkLayer connectionParameters)
 {
     (void)signal(SIGALRM, alarmHandler);
     // printf("%s", connectionParameters.serialPort);
-    int fd = open(connectionParameters.serialPort, O_RDWR | O_NOCTTY | O_NONBLOCK);
+    fd = open(connectionParameters.serialPort, O_RDWR | O_NOCTTY | O_NONBLOCK);
     if (fd < 0) {
         perror(connectionParameters.serialPort);
         return -1;
@@ -297,7 +297,6 @@ int llopen(LinkLayer connectionParameters)
                 state = stateMachineUA(b, state);
                 
             }
-            
             
            if (state == STOP_STATE){
                 break;
@@ -401,92 +400,90 @@ int llclose(int showStatistics, LinkLayer connectionParameters)
             enum setState state = START_STATE;
             unsigned char b;
 
+            int bytes = write(fd, array, 5);
+            sleep(1);
             
             if(alarmEnabled == FALSE){
-                int bytes = write(fd, array, 5);
-
-                
                 alarm(connectionParameters.timeout); // 3s para escrever
                 alarmEnabled = TRUE;
-                if (bytes < 0){
-                printf("Emissor: Failed to send DISC\n");
-                }
-                else{
-                    printf("Emissor: Sent DISC\n");
-                }
+
             }
-            /*
+            if (bytes < 0){
+                printf("Emissor: Failed to send DISC\n");
+            }
+            else{
+                printf("Emissor: Sent DISC\n");
+            }
+            
+            //receber DISC
+            printf("Receiving DISC:\n");
             while (state != STOP_STATE)
             {
                 int bytesR= read(fd, &b, 1);
-                printf("Reading: %d\n", bytesR); 
                 if(bytesR > 0){
-                    printf("alarmCount #%d\n", alarmCount);  
+                    
                     printf("Reading: %x\n", b); 
 
                     state = stateMachineDISC(b, state);
-                    printf("\nESTADOOOO %d\n", state);
-
-                }
-                
-                
+                }  
             }
-            printf("Emissor: Received DISC\n");
-
-            unsigned char UA[5];
-            UA[0] = FLAG;
-            UA[1] = A;
-            UA[2] = C_UA;
-            UA[3] = BCC_UA;
-            UA[4] = FLAG;
-            int bytesUA = write(fd, UA, 5);
-            if (bytesUA < 0){
-                printf("Emissor: Failed to send UA\n");
+            if (state == STOP_STATE){
+                break;
             }
-            else {
-                printf("Emissor: Sending UA: %x,%x,%x,%x,%x\n", UA[0], UA[1], UA[2], UA[3], UA[4]);
 
-                printf("Sent UA FRAME\n");
-            }*/
-           
 
+        }
+        if (alarmCount >= connectionParameters.nRetransmissions) printf("Didn't receive DISC\n");
+        else printf("Emissor: Received DISC\n");
+
+        //mandar UA
+        unsigned char UA[5];
+        UA[0] = FLAG;
+        UA[1] = A;
+        UA[2] = C_UA;
+        UA[3] = BCC_UA;
+        UA[4] = FLAG;
+        int bytesUA = write(fd, UA, 5);
+        if (bytesUA < 0){
+            printf("Emissor: Failed to send UA\n");
+        }
+        else {
+            printf("Emissor: Sending UA: %x,%x,%x,%x,%x\n", UA[0], UA[1], UA[2], UA[3], UA[4]);
+
+            printf("Sent UA FRAME\n");
         }
 
     }     
 
     if(connectionParameters.role == LlRx){
-        printf("\n ESTADOOokkkk");
+
+        printf("Receiving DISC:\n");
         
         enum setState stateR = START_STATE;
-        printf("\n ESTADOO:");
         unsigned char a;
-        
         
         while (stateR != STOP_STATE)
         {
             int b_rcv = read(fd, &a, 1);
-            printf("Receiving: %d\n", b_rcv);
             if (b_rcv > 0)
             {
-                printf("Receiving: %x\n", a);
+                printf("Reading: %x\n", a);
 
                 stateR = stateMachineDISC(a, stateR);
-                printf("\n ESTADO %d \n", stateR);
 
             }
 
         }
-        printf("Receptor received DISC!");
+        printf("Receptor: Received DISC!\n");
+    
         
-        
-
-        /*
         unsigned char array[5];
         array[0] = FLAG;
         array[1] = A_RX;
         array[2] = C_DISC;
         array[3] = A_RX^C_DISC;
         array[4] = FLAG;
+        
         alarmCount = 0;
         
         while(alarmCount < connectionParameters.nRetransmissions){
@@ -496,6 +493,7 @@ int llclose(int showStatistics, LinkLayer connectionParameters)
 
             int bytes = write(fd, array, 5);
             sleep(1);
+
             if(alarmEnabled == FALSE){
                 alarm(connectionParameters.timeout); // 3s para escrever
                 alarmEnabled = TRUE;
@@ -504,26 +502,29 @@ int llclose(int showStatistics, LinkLayer connectionParameters)
                 printf("Receptor: Failed to send DISC\n");
             }
             else{
-                printf("Sent DISC\n");
+                printf("Receptor: Sent DISC\n");
             }
+            
+            printf("Receptor: Receiving UA\n");
             while (state != STOP_STATE)
             {
                 int bytesR= read(fd, &c, 1);
-                if(bytesR == 0){
-                    continue;
-                }
-                printf("alarmCount #%d\n", alarmCount);  
-                printf("Reading: %x\n", c); 
+                if(bytesR > 0){
+                    printf("Reading: %x\n", c); 
 
-                state = stateMachineUA(c, state);
+                    state = stateMachineUA(c, state);
+                }
                 
             }
-        }        
-        */
-
+            if(state == STOP_STATE){
+                break;
+            }
+        }      
         
 
+
     }
+    
 
     if (tcsetattr(fd, TCSANOW, &oldtio) == -1)
     {
@@ -533,6 +534,7 @@ int llclose(int showStatistics, LinkLayer connectionParameters)
 
     close(fd);
 
+        
 
 
     return 1;

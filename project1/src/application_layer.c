@@ -21,9 +21,11 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
 
     if (llopen(ll) == -1) {
         printf("\nERROR: Couldn't estabilish the connection\n");
-        llclose(0);
+        llclose(0, ll);
         return;
     } else {
         printf("\nConnection estabilished\n");
     }
+
+    llclose(1, ll);
 }

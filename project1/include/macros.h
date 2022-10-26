@@ -1,3 +1,17 @@
+enum statePacket {
+    packet_START, 
+    packet_FLAG1, 
+    packet_A, 
+    packet_C, 
+    packet_BCC1, 
+    packet_TRANS, 
+    packet_DATA, 
+    packet_BCC2, 
+    packet_FLAG2, 
+    packet_STOP, 
+    packet_ERROR
+};
+
 enum setState{
     START_STATE,
     FLAG_RCV,
@@ -6,6 +20,8 @@ enum setState{
     BCC,
     STOP_STATE
 };
+
+
 
 #define FLAG 0x7E
 #define A 0x03

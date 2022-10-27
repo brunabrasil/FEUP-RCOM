@@ -228,7 +228,7 @@ int llopen(LinkLayer connectionParameters)
     newtio.c_cc[VTIME] = 1; // Inter-character timer unused
     newtio.c_cc[VMIN] = 0;  // Blocking read until 5 chars received
     tcflush(fd, TCIOFLUSH);
-    
+
     if (tcsetattr(fd, TCSANOW, &newtio) == -1)
     {
         perror("tcsetattr");
@@ -317,7 +317,6 @@ int llopen(LinkLayer connectionParameters)
 
                 stateR = stateMachineSET(c, stateR);
             }
-
         }
 
         printf("Received SET FRAME\n");
@@ -414,10 +413,12 @@ int llwrite(const unsigned char *buf, int bufSize)
     index++;
 
     int STOP = FALSE;
+    unsigned char rcv[5];
 
     while(alarmCount < tries){
         if(alarmEnabled == FALSE){
             write(fd, infoFrame, index);
+            sleep(1);
             printf("\n");
             for (int j =0; j < index; j++) {
                 printf("%02x|", infoFrame[j]);
@@ -426,8 +427,36 @@ int llwrite(const unsigned char *buf, int bufSize)
             alarm(timeout);
             alarmEnabled = TRUE;
         }
+
+        int response = read(fd, rcv, 5);
+
+        if(response > 0){
+            if(rcv[2] != (!infoFlag << 7 | 0x05)){
+                printf("\nRECEIVED REJ\n");
+                alarmEnabled = FALSE;
+                continue;
+            }
+            else if(rcv[3] != (rcv[1]^rcv[2])){
+                printf("\nRR NOT CORRECT\n");
+                alarmEnabled = FALSE;
+                continue;
+            }
+            else{
+                printf("\nRR correctly received");
+                break;
+            }
+        }
+    }
+    if(alarmCount >= tries){
+        printf("TIME-OUT");
+        return -1;
     }
 
+    if(infoFlag) infoFlag = 0;
+    else infoFlag = 1;
+
+
+    //se a resposta for RR mudo o infoflag
 
     return 0;
 
@@ -447,7 +476,7 @@ int llread(unsigned char *packet)
     
     while (statePac != packet_STOP) {
         int bytes = read(fd, &c, 1);
-        printf("READING ?? %d \n", bytes);
+        
         if(bytes < 0){
             continue;
         }
@@ -488,15 +517,25 @@ int llread(unsigned char *packet)
     }
     statePac = START_STATE;
 
+    for (int j = 0; j< sizeInfoFrame; j++) {
+        printf("%02x|", infoFrame[j]);
+    }
+   printf("infoFrame[2]: %x\n", infoFrame[2]);
+
     unsigned char rFrame[5];
 
-    if((infoFrame[2] != (!infoFlag << 6) || infoFrame[1]^infoFrame[2]) != infoFrame[3]){
+    if(infoFrame[2] != (infoFlag << 6) || (infoFrame[1]^infoFrame[2]) != infoFrame[3]){
+        printf("infoFrame[2]: %x\n", infoFrame[2]);
+        printf("INFOFLAG: %x\n", (infoFlag << 6));
+        printf("infoFrame[1]^infoFrame[2]) : %x\n", infoFrame[1]^infoFrame[2]);
+        printf("infoFrame[3]): %x\n", infoFrame[3]);
         printf("\nInfo Frame not received correctly\nSending REJ.\n");
         rFrame[0] = FLAG;
         rFrame[1] = A;
-        rFrame[2] = (infoFlag << 7) | 0x01;
+        rFrame[2] = (!infoFlag << 7) | 0x01;
         rFrame[3] = A ^ rFrame[2];
         rFrame[4] = FLAG;
+        write(fd, rFrame, 5);
 
         printf("return on line 505\n");
         return -1;
@@ -532,7 +571,6 @@ int llread(unsigned char *packet)
         }
     }
     */
-    
 
 
     
@@ -613,7 +651,7 @@ int llclose(int showStatistics, LinkLayer connectionParameters)
         else {
             printf("Emissor: Sending UA: %x,%x,%x,%x,%x\n", UA[0], UA[1], UA[2], UA[3], UA[4]);
 
-            printf("---------Sent UA FRAME----------\n");
+            printf("Sent UA FRAME\n");
         }
 
     }     
@@ -637,7 +675,7 @@ int llclose(int showStatistics, LinkLayer connectionParameters)
             }
 
         }
-        printf("---------Receptor: Received DISC!--------\n");
+        printf("-Receptor: Received DISC!\n");
     
         
         unsigned char array[5];

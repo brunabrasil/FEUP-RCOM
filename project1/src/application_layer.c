@@ -11,10 +11,10 @@ int createControlPacket(char* filename, int start, unsigned char* packet){
     }
     struct stat st;
     stat(filename, &st);
-    unsigned char size_string[10]; //pq 20? ou 10
+    unsigned char size_string[20]; //pq 20? ou 10
     int fileSize = st.st_size;
-    sprintf(size_string, "%d", fileSize); // stores the size of the file in a string , 02lX
-    int sizeBytes = strlen(size_string); // ??
+    sprintf(size_string, "%02lx", fileSize); // stores the size of the file in a string , 02lX
+    int sizeBytes = strlen(size_string) / 2;
 
     if(start) packet[0] = 0x02; //start
     else packet[0] = 0x03; // end
@@ -22,9 +22,11 @@ int createControlPacket(char* filename, int start, unsigned char* packet){
     packet[1] = 0; // 0 -> tamanho do ficheiro 
     packet[2] = sizeBytes;
 
-    memcpy(packet + 3, size_string, sizeBytes);
-
-    unsigned int i = sizeBytes + 3; 
+    int i = 4;
+    for(int j = (sizeBytes - 1); j>-1; j--){
+		packet[i] = fileSize >> (j*8);
+        i++;
+	}
 
     packet[i] = 1; // 1 -> name of the file
     i++; 
@@ -33,9 +35,10 @@ int createControlPacket(char* filename, int start, unsigned char* packet){
     
     packet[i] = filename_size;
     i++;
-    memcpy(packet + 3, filename, filename_size);
-
-    i = i + filename_size;
+    for(int j = 0; j < filename_size; j++){
+		packet[i] = filename[i];
+        i++;
+	}
 
     return i;
 
@@ -92,16 +95,19 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         int sizePac = createControlPacket(filename, 1, &packet);
 
         llwrite(packet, sizePac);
+        //se for -1, lidar com essa informação, n conseguiu mandar
 
     }
     else if (ll.role == LlRx){
         while(TRUE){
-            printf("Olá\n");
             int ret = llread(packet);
             //printf("PACKET 0: %02x \n", packet[0]);
 
             if (ret == -1) {
                 continue;
+            }
+            if(ret == 0) {
+                break;
             }
             if(packet[0] = 0x03){
                 //break;

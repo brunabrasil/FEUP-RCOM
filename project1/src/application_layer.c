@@ -2,6 +2,8 @@
 
 #include "../include/application_layer.h"
 
+int ret1;
+
 int createControlPacket(char* filename, int start, unsigned char* packet){
     
     //L1 é so um byte ent V (o filename) n pode passar de 255
@@ -94,19 +96,21 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         fclose(file);
         int sizePac = createControlPacket(filename, 1, &packet);
 
-        llwrite(packet, sizePac);
+        ret1 = llwrite(packet, sizePac);
         //se for -1, lidar com essa informação, n conseguiu mandar
 
     }
     else if (ll.role == LlRx){
         while(TRUE){
-            int ret = llread(packet);
+            int ret2 = llread(packet);
             //printf("PACKET 0: %02x \n", packet[0]);
-
-            if (ret == -1) {
+            if (ret1 ==-1){
+                break;
+            }
+            if (ret2 == -1) {
                 continue;
             }
-            if(ret == 0) {
+            if(ret2 == 0) {
                 break;
             }
             if(packet[0] = 0x03){

@@ -16,7 +16,7 @@ int alarmCount = 0;
 #define BUF_SIZE 256
 
 int fd;
-int timeout, tries;
+int timeout, tries, previousNumber = 1;
 
 struct termios oldtio;
 struct termios newtio;
@@ -414,8 +414,10 @@ int llwrite(const unsigned char *buf, int bufSize)
 
     int STOP = FALSE;
     unsigned char rcv[5];
+    alarmCount = 0;
 
     while(alarmCount < tries){
+        (void)signal(SIGALRM, alarmHandler);
         if(alarmEnabled == FALSE){
             write(fd, infoFrame, index);
             sleep(1);
@@ -432,8 +434,7 @@ int llwrite(const unsigned char *buf, int bufSize)
 
         if(response > 0){
             if(rcv[2] != (!infoFlag << 7 | 0x05)){
-                printf("\nRECEIVED REJ\n");
-                alarmEnabled = FALSE;
+                printf("\nREJ Received\n");
                 continue;
             }
             else if(rcv[3] != (rcv[1]^rcv[2])){
@@ -448,7 +449,7 @@ int llwrite(const unsigned char *buf, int bufSize)
         }
     }
     if(alarmCount >= tries){
-        printf("TIME-OUT");
+        printf("TIME-OUT\n");
         return -1;
     }
 
@@ -520,37 +521,40 @@ int llread(unsigned char *packet)
     for (int j = 0; j< sizeInfoFrame; j++) {
         printf("%02x|", infoFrame[j]);
     }
-   printf("infoFrame[2]: %x\n", infoFrame[2]);
 
     unsigned char rFrame[5];
+    rFrame[0] = FLAG;
+    rFrame[1] = A;
+    rFrame[4] = FLAG;
+    if(infoFrame[2] != (infoFlag << 6)){
 
-    if(infoFrame[2] != (infoFlag << 6) || (infoFrame[1]^infoFrame[2]) != infoFrame[3]){
-        printf("infoFrame[2]: %x\n", infoFrame[2]);
-        printf("INFOFLAG: %x\n", (infoFlag << 6));
-        printf("infoFrame[1]^infoFrame[2]) : %x\n", infoFrame[1]^infoFrame[2]);
-        printf("infoFrame[3]): %x\n", infoFrame[3]);
         printf("\nInfo Frame not received correctly\nSending REJ.\n");
-        rFrame[0] = FLAG;
-        rFrame[1] = A;
         rFrame[2] = (!infoFlag << 7) | 0x01;
         rFrame[3] = A ^ rFrame[2];
-        rFrame[4] = FLAG;
         write(fd, rFrame, 5);
 
-        printf("return on line 505\n");
+        printf("return on line 540\n");
+        return -1;
+    }
+    else if ((infoFrame[1]^infoFrame[2]) != infoFrame[3]){
+        printf("\nError in the protocol\nSending REJ.\n");
+        rFrame[2] = (!infoFlag << 7) | 0x01;
+        rFrame[3] = A ^ rFrame[2];
+        write(fd, rFrame, 5);
+
         return -1;
     }
 
     //destuffing
     int index = 0;
     for(int i = 0; i < sizeInfoFrame; i++){
-        if(infoFrame[i] == 0x7D && infoFrame[i+1]==0x5E){
+        if(infoFrame[i] == 0x7D && infoFrame[i+1]==0x5e){
             packet[index] = FLAG;
             index++;
             i++;
         }
 
-        else if(infoFrame[i] == 0x7D && infoFrame[i+1]==0x5D){
+        else if(infoFrame[i] == 0x7D && infoFrame[i+1]==0x5d){
             packet[index] = 0x7D;
             index++;
             i++;
@@ -561,20 +565,70 @@ int llread(unsigned char *packet)
             index++;
         }
     }
-
+    unsigned char bcc2 = 0x00;
     int size = 0; //tamanho da secçao de dados
-    /*
-    if(packet[4]==0x01){
-        size = 256*packet[6]+packet[7]+4 +6; //+4 para contar com os bytes de controlo, numero de seq e tamanho
-        for(int i=4; i<size-2; i++){
-            BCC2 = BCC2 ^ packet[i];
-        }
+    if(packet[4] == 0x01){ //pacote de dados
+        size = 256*packet[6] + packet[7] + 4 + 6; //+4 para contar com os bytes de controlo, numero de seq e tamanho ??? 
+    } else{ //pacote de controlo
+        size += packet[6] + 3 + 4; //+ 3 de C, T1 e L1 e + 4 de FLAG, A, C, BCC
+        size += packet[size+2] + 2 +2; //+2 para contar com T2 e L2 //+2 para contar com BCC2 e FLAG
     }
-    */
+    for(int i = 4; i < size-1; i++){
+        bcc2 = bcc2 ^ packet[i];
+        
+    }
 
+    //confirmar bcc2
+    if(packet[size-1] == bcc2){
+        if(packet[4]==0x01){ // se for dados
+            if(infoFrame[5] == previousNumber){  // conferir numero de sequencia
+                //pq mandar rr se é duplicated??
+                printf("\nDuplicate Frame. Sending RR.\n");//ver isso
+                rFrame[2] = (!infoFlag << 7) | 0x05; //ver se tenho de negar ou nao
+                rFrame[3] = rFrame[1] ^ rFrame[2];
+                write(fd, rFrame, 5);
+                return -1;
+            }   
+            else{
+                previousNumber = infoFrame[5];
+            }
+        }
+        printf("\nReceived InfoFrame! Sending RR\n");
+        rFrame[2] = (!infoFlag << 7) | 0x05;
+        rFrame[3] = rFrame[1] ^ rFrame[2];
+        write(fd, rFrame, 5);
+    }
+    else {
+        printf("\nError in the data. Sending REJ.\n");
+        rFrame[2] = (!infoFlag << 7) | 0x01;
+        rFrame[3] = rFrame[1] ^ rFrame[2];
+        write(fd, rFrame, 5);
 
+        return -1;
+    }
     
-    printf("return on line 543\n");
+    //(*sizeOfPacket) = size;
+
+    index = 0;
+    unsigned char packetAux[400];
+    
+    for(int i = 4; i < size-2; i++){
+        packetAux[index] = packet[i];
+        index++;
+    }
+    
+    //(*sizeOfPacket) = size - 6;
+    //por o packet a 0
+    for(int i=0; i < sizeof(packet); i++){
+        packet[i] = 0;
+    }
+    size = size - 6;
+    //memset(packet,0,sizeof(packet));
+
+    for(int i=0; i<size; i++){
+        packet[i] = packetAux[i];
+    }
+    
     return 0;
 }
 
@@ -615,7 +669,7 @@ int llclose(int showStatistics, LinkLayer connectionParameters)
                 printf("Emissor: Failed to send DISC\n");
             }
             else{
-                printf("----------Emissor: Sent DISC------------\n");
+                printf("Emissor: Sent DISC\n");
             }
             
             //receber DISC
@@ -635,7 +689,7 @@ int llclose(int showStatistics, LinkLayer connectionParameters)
             }
         }
         if (alarmCount >= connectionParameters.nRetransmissions) printf("Didn't receive DISC\n");
-        else printf("---------Emissor: Received DISC-----------\n");
+        else printf("Emissor: Received DISC\n");
 
         //mandar UA
         unsigned char UA[5];
@@ -675,7 +729,7 @@ int llclose(int showStatistics, LinkLayer connectionParameters)
             }
 
         }
-        printf("-Receptor: Received DISC!\n");
+        printf("Receptor: Received DISC!\n");
     
         
         unsigned char array[5];
@@ -703,7 +757,7 @@ int llclose(int showStatistics, LinkLayer connectionParameters)
                 printf("Receptor: Failed to send DISC\n");
             }
             else{
-                printf("---------Receptor: Sent DISC----------\n");
+                printf("Receptor: Sent DISC\n");
             }
             
             printf("Receptor: Receiving UA\n");

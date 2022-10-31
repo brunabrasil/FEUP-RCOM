@@ -443,7 +443,7 @@ int llwrite(const unsigned char *buf, int bufSize)
                 continue;
             }
             else{
-                printf("\nRR correctly received");
+                printf("\nRR correctly received\n");
                 break;
             }
         }
@@ -455,6 +455,7 @@ int llwrite(const unsigned char *buf, int bufSize)
 
     if(infoFlag) infoFlag = 0;
     else infoFlag = 1;
+    printf("\nINFOFLAG: %02x\n", infoFlag);
 
 
     //se a resposta for RR mudo o infoflag
@@ -526,6 +527,7 @@ int llread(unsigned char *packet)
     rFrame[0] = FLAG;
     rFrame[1] = A;
     rFrame[4] = FLAG;
+    
     if(infoFrame[2] != (infoFlag << 6)){
 
         printf("\nInfo Frame not received correctly\nSending REJ.\n");
@@ -597,6 +599,9 @@ int llread(unsigned char *packet)
         rFrame[2] = (!infoFlag << 7) | 0x05;
         rFrame[3] = rFrame[1] ^ rFrame[2];
         write(fd, rFrame, 5);
+        
+        if(infoFlag) infoFlag = 0;
+        else infoFlag = 1;
     }
     else {
         printf("\nError in the data. Sending REJ.\n");

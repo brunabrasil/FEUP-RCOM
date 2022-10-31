@@ -95,7 +95,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
     if(ll.role == LlTx){
         struct stat st;
         stat(filename, &st);
-        FILE *file = fopen(filename, "rb");
+        int file = open(filename, O_RDONLY);
 
         if(!file){
             printf("Could not open file\n");

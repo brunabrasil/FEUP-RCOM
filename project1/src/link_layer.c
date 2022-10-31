@@ -297,7 +297,7 @@ int llopen(LinkLayer connectionParameters)
                   
         }
 
-        if (alarmCount == connectionParameters.nRetransmissions) printf("Error UA\n");
+        if (alarmCount >= connectionParameters.nRetransmissions) printf("Error UA\n");
         else printf("Received UA successfully\n");
     }
 
@@ -452,7 +452,7 @@ int llwrite(const unsigned char *buf, int bufSize)
         printf("TIME-OUT\n");
         return -1;
     }
-
+    previousNumber = infoFlag;
     if(infoFlag) infoFlag = 0;
     else infoFlag = 1;
     printf("\nINFOFLAG: %02x\n", infoFlag);
@@ -528,6 +528,9 @@ int llread(unsigned char *packet)
     rFrame[1] = A;
     rFrame[4] = FLAG;
     
+    printf("\ninfoFrame[2]:  %02x\n", infoFrame[2]);
+    printf("\ninfoFlag << 6: %02x\n", infoFlag << 6);
+
     if(infoFrame[2] != (infoFlag << 6)){
 
         printf("\nInfo Frame not received correctly\nSending REJ.\n");
@@ -570,14 +573,13 @@ int llread(unsigned char *packet)
     unsigned char bcc2 = 0x00;
     int size = 0; //tamanho da secçao de dados
     if(packet[4] == 0x01){ //pacote de dados
-        size = 256*packet[6] + packet[7] + 4 + 6; //+4 para contar com os bytes de controlo, numero de seq e tamanho ??? 
+        size = 256*packet[6] + packet[7] + 4 + 5; //+4 para contar com os bytes de controlo, numero de seq e tamanho ??? 
     } else{ //pacote de controlo
         size += packet[6] + 3 + 4; //+ 3 de C, T1 e L1 e + 4 de FLAG, A, C, BCC
         size += packet[size+2] + 2 +2; //+2 para contar com T2 e L2 //+2 para contar com BCC2 e FLAG
     }
     for(int i = 4; i < size-1; i++){
         bcc2 = bcc2 ^ packet[i];
-        
     }
 
     //confirmar bcc2
@@ -599,10 +601,13 @@ int llread(unsigned char *packet)
         rFrame[2] = (!infoFlag << 7) | 0x05;
         rFrame[3] = rFrame[1] ^ rFrame[2];
         write(fd, rFrame, 5);
-        
+        printf("\nANTIGA INFOFLAG: %02x\n", infoFlag);
+        previousNumber = infoFlag;
         if(infoFlag) infoFlag = 0;
         else infoFlag = 1;
+        printf("\nNOVA INFOFLAG: %02x\n", infoFlag);
     }
+    
     else {
         printf("\nError in the data. Sending REJ.\n");
         rFrame[2] = (!infoFlag << 7) | 0x01;

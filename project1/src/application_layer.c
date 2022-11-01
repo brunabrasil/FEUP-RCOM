@@ -90,9 +90,9 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
     }
 
     //start reading penguin
-    unsigned char packet[300];
-
+    
     if(ll.role == LlTx){
+        unsigned char packet[300];
         struct stat st;
         stat(filename, &st);
         int file = open(filename, O_RDONLY);
@@ -111,12 +111,10 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         if(ret1==-1){
             return;
         }
-        printf("\nRET 1: %d\n", ret1);
 
         unsigned int index = 0;
         int count = 0;
         while ((ret1 = read(file, packet, 300-4)) > 0) {
-            printf("\nDENTROOO\n");
             index++;
             count += ret1;
             ret1 = createDataPacket(&packet, ret1, index);
@@ -127,27 +125,39 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             }
             printf("Sending: %d/%d (%d%%) sent\n", count, st.st_size, (int) (((double)count / (double)st.st_size) *100));
         }
-        printf("\nRET 1: %d\n", ret1);
         ret1 = createControlPacket(filename, st.st_size, 0, &packet);
         
         if (llwrite(packet, ret1) < 0) {
             printf("Failed to send information frame\n");
             return;
         }
-        fclose(file);
+        close(file);
+        
     }
     else if (ll.role == LlRx){
-        while(TRUE){
-            int ret2 = llread(packet);
+        int *file = -1;
+        int STOP = FALSE;
+        while(!STOP){
+            unsigned char packet[600] = {0};
+            int sizePacket = 0;
+            int response = llread(&packet, &sizePacket);
             //printf("PACKET 0: %02x \n", packet[0]);
-            if (ret1 == -1){
-                break;
-            }
-            if (ret2 == -1) {
+            if(response < 0){
                 continue;
             }
-            if(packet[0] = 0x03){
-                //break;
+            if(packet[0] == 0x02){ //start control
+                printf("\nStart control\n");
+                file = fopen(filename, "wb"); 
+            }
+            else if(packet[0]==0x03){ //end control
+                printf("\nEnd control\n");
+                fclose(file);
+                STOP = TRUE;  
+            }
+            else{ //data
+                for(int i=4; i<sizePacket; i++){
+                    fputc(packet[i], file);
+                }
             }
         }
         

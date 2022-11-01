@@ -420,11 +420,7 @@ int llwrite(const unsigned char *buf, int bufSize)
         (void)signal(SIGALRM, alarmHandler);
         if(alarmEnabled == FALSE){
             write(fd, infoFrame, index);
-            sleep(1);
-            printf("\n");
-            for (int j =0; j < index; j++) {
-                printf("%02x|", infoFrame[j]);
-            }
+            //sleep(1);
             printf("\nInfo Frame sent Ns = %d\n", infoFlag);
             alarm(timeout);
             alarmEnabled = TRUE;
@@ -455,9 +451,6 @@ int llwrite(const unsigned char *buf, int bufSize)
     previousNumber = infoFlag;
     if(infoFlag) infoFlag = 0;
     else infoFlag = 1;
-    printf("\nINFOFLAG: %02x\n", infoFlag);
-
-
     //se a resposta for RR mudo o infoflag
 
     return 0;
@@ -469,7 +462,7 @@ int llwrite(const unsigned char *buf, int bufSize)
 ////////////////////////////////////////////////
 
 
-int llread(unsigned char *packet)
+int llread(unsigned char *packet, int *sizePacket)
 {   
     unsigned char c;
     unsigned char infoFrame[600];
@@ -519,19 +512,12 @@ int llread(unsigned char *packet)
     }
     statePac = START_STATE;
 
-    for (int j = 0; j< sizeInfoFrame; j++) {
-        printf("%02x|", infoFrame[j]);
-    }
-
     unsigned char rFrame[5];
     rFrame[0] = FLAG;
     rFrame[1] = A;
     rFrame[4] = FLAG;
-    
-    printf("\ninfoFrame[2]:  %02x\n", infoFrame[2]);
-    printf("\ninfoFlag << 6: %02x\n", infoFlag << 6);
 
-    if(infoFrame[2] != (infoFlag << 6)){
+    if(infoFrame[2] != (infoFlag << 6)){ 
 
         printf("\nInfo Frame not received correctly\nSending REJ.\n");
         rFrame[2] = (!infoFlag << 7) | 0x01;
@@ -601,11 +587,6 @@ int llread(unsigned char *packet)
         rFrame[2] = (!infoFlag << 7) | 0x05;
         rFrame[3] = rFrame[1] ^ rFrame[2];
         write(fd, rFrame, 5);
-        printf("\nANTIGA INFOFLAG: %02x\n", infoFlag);
-        previousNumber = infoFlag;
-        if(infoFlag) infoFlag = 0;
-        else infoFlag = 1;
-        printf("\nNOVA INFOFLAG: %02x\n", infoFlag);
     }
     
     else {
@@ -622,23 +603,24 @@ int llread(unsigned char *packet)
     index = 0;
     unsigned char packetAux[400];
     
-    for(int i = 4; i < size-2; i++){
+    for(int i = 4; i < size-1; i++){ //2
         packetAux[index] = packet[i];
         index++;
     }
     
-    //(*sizeOfPacket) = size - 6;
+    (*sizePacket) = size - 5; //6
     //por o packet a 0
-    for(int i=0; i < sizeof(packet); i++){
+    for(int i=0; i < (*sizePacket); i++){
         packet[i] = 0;
     }
-    size = size - 6;
     //memset(packet,0,sizeof(packet));
 
-    for(int i=0; i<size; i++){
+    for(int i=0; i<(*sizePacket); i++){
         packet[i] = packetAux[i];
     }
-    
+    previousNumber = infoFlag;
+    if(infoFlag) infoFlag = 0;
+    else infoFlag = 1;
     return 0;
 }
 

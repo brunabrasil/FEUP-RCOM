@@ -76,7 +76,6 @@ enum setState stateMachineUA (unsigned char b, enum setState state){
         break;
 
     case STOP_STATE:
-        STOP = TRUE;
         break;
 
     default:
@@ -255,40 +254,30 @@ int llopen(LinkLayer connectionParameters)
         
 
         while(alarmCount < tries){
-            
             state = START_STATE;
-            STOP = FALSE;
-            
-            
-            int bytes = write(fd, SET, 5);
-            sleep(1);
-
+            int bytes;
+            (void)signal(SIGALRM, alarmHandler);
             if(alarmEnabled == FALSE){
+                bytes = write(fd, SET, 5);
                 alarm(timeout); // 3s para escrever
                 alarmEnabled = TRUE;
-            }
-
-
-            if (bytes < 0){
-                printf("Failed to send SET\n");
-            }
-            else{
-                printf("Sending: %x,%x,%x,%x,%x\n", SET[0], SET[1], SET[2], SET[3], SET[4]);
-
-                printf("Sent SET FRAME\n");
-            }
-
-            
-            while (STOP == FALSE)
-            {
-                int b_rcv= read(fd, &b, 1);
-                if(b_rcv == 0){
-                    continue;
+                if (bytes < 0){
+                    printf("Failed to send SET\n");
                 }
-                //printf("Reading: %x\n", b); 
+                else{
+                    printf("Sending: %x,%x,%x,%x,%x\n", SET[0], SET[1], SET[2], SET[3], SET[4]);
 
+                    printf("Sent SET FRAME\n");
+                }
+            }
+
+            while (state != STOP_STATE)
+            {
+                int b_rcv = read(fd, &b, 1);
+                if(b_rcv <= 0){
+                    break;
+                }
                 state = stateMachineUA(b, state);
-                
             }
             
            if (state == STOP_STATE){
@@ -297,7 +286,11 @@ int llopen(LinkLayer connectionParameters)
                   
         }
 
-        if (alarmCount >= connectionParameters.nRetransmissions) printf("Error UA\n");
+        if (alarmCount >= connectionParameters.nRetransmissions){
+            printf("Error UA\n");
+            printf("TIME-OUT\n");
+            return -1;
+        } 
         else printf("Received UA successfully\n");
     }
 
@@ -351,13 +344,7 @@ int llopen(LinkLayer connectionParameters)
 ////////////////////////////////////////////////
 int llwrite(const unsigned char *buf, int bufSize)
 {
-    
-    //1º criar o BCC para o dataPacket
-    //2º fazer byte stuffing
-    //3º criar a nova infoFrame com o dataPacket (ja stuffed) la dentro
-    //4º enviar a infoFrame e contar o alarme
-    //5º factCheck a frame recebida do llread (ver se tem erros ou assim)
-    //6º llwrite so termina quando recebe mensagem de sucesso ou quando o limite de tentativas é excedido
+
     char bcc2 = 0x00;
     for (int i = 0; i < bufSize; i++) {
         bcc2 = bcc2 ^ buf[i];
@@ -622,7 +609,7 @@ int llread(unsigned char *packet, int *sizePacket)
     if(infoFlag) infoFlag = 0;
     else infoFlag = 1;
     return 0;
-}
+} 
 
 ////////////////////////////////////////////////
 // LLCLOSE
@@ -648,12 +635,11 @@ int llclose(int showStatistics, LinkLayer connectionParameters)
 
             enum setState state = START_STATE;
             unsigned char b;
-
-            int bytes = write(fd, array, 5);
-            sleep(1);
-            
+            int bytes;
+            (void)signal(SIGALRM, alarmHandler);
             if(alarmEnabled == FALSE){
-                alarm(connectionParameters.timeout); // 3s para escrever
+                bytes = write(fd, array, 5);
+                alarm(timeout); // 3s para escrever
                 alarmEnabled = TRUE;
 
             }
@@ -669,18 +655,23 @@ int llclose(int showStatistics, LinkLayer connectionParameters)
             while (state != STOP_STATE)
             {
                 int bytesR= read(fd, &b, 1);
-                if(bytesR > 0){
-                    
-                    printf("Reading: %x\n", b); 
+                if(bytesR <= 0){      
+                    break;
+                }
+                printf("Reading: %x\n", b); 
 
-                    state = stateMachineDISC(b, state);
-                }  
+                state = stateMachineDISC(b, state);
             }
             if (state == STOP_STATE){
                 break;
             }
         }
-        if (alarmCount >= connectionParameters.nRetransmissions) printf("Didn't receive DISC\n");
+        if (alarmCount >= connectionParameters.nRetransmissions){
+            printf("Didn't receive DISC\n");
+            printf("TIME-OUT\n");
+
+            return -1;
+        } 
         else printf("Emissor: Received DISC\n");
 
         //mandar UA
@@ -737,12 +728,11 @@ int llclose(int showStatistics, LinkLayer connectionParameters)
 
             enum setState state = START_STATE;
             unsigned char c;
-
-            int bytes = write(fd, array, 5);
-            sleep(1);
-
+            int bytes;
+            (void)signal(SIGALRM, alarmHandler);
             if(alarmEnabled == FALSE){
-                alarm(connectionParameters.timeout); // 3s para escrever
+                bytes = write(fd, array, 5);
+                alarm(timeout); // 3s para escrever
                 alarmEnabled = TRUE;
             }
             if (bytes < 0){
@@ -755,12 +745,13 @@ int llclose(int showStatistics, LinkLayer connectionParameters)
             printf("Receptor: Receiving UA\n");
             while (state != STOP_STATE)
             {
-                int bytesR= read(fd, &c, 1);
-                if(bytesR > 0){
-                    printf("Reading: %x\n", c); 
-
-                    state = stateMachineUA(c, state);
+                int bytesR = read(fd, &c, 1);
+                if(bytesR <= 0){
+                    break;
                 }
+                printf("Reading: %x\n", c); 
+
+                state = stateMachineUA(c, state);
                 
             }
             if(state == STOP_STATE){

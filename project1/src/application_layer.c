@@ -2,7 +2,6 @@
 
 #include "../include/application_layer.h"
 
-int ret1;
 
 int createControlPacket(char* filename, int fileSize, int start, unsigned char* packet){
     
@@ -44,6 +43,7 @@ int createControlPacket(char* filename, int fileSize, int start, unsigned char* 
 }
 
 int createDataPacket(unsigned char* packet, unsigned int nBytes, int index){
+    printf("\nDENTRO DO DATA PACKET\n");
     unsigned char buf[300] = {0};
     int l1 = nBytes/256;
 	int l2 = nBytes%256;
@@ -83,7 +83,6 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
 
     if (llopen(ll) == -1) {
         printf("\nERROR: Couldn't estabilish the connection\n");
-        llclose(0, ll);
         return;
     } else {
         printf("\nConnection estabilished\n");
@@ -105,31 +104,32 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             printf("Open file successfully\n");
         }
 
-        int sizePac = createControlPacket(filename, st.st_size, 1, &packet);
-
-        ret1 = llwrite(packet, sizePac);
-        if(ret1==-1){
+        unsigned int sizePac = createControlPacket(filename, st.st_size, 1, &packet);
+        if(llwrite(packet, sizePac) < 0){
+            llclose(0, ll);
             return;
         }
-
+        unsigned int bytes;
         unsigned int index = 0;
         int count = 0;
-        while ((ret1 = read(file, packet, 300-4)) > 0) {
+        while ((bytes = read(file, packet, 300-4)) > 0) {
+            printf("\n dentroo\n");
             index++;
-            count += ret1;
-            ret1 = createDataPacket(&packet, ret1, index);
-            if (llwrite(packet, ret1) < 0) {
+            count += bytes;
+            bytes = createDataPacket(&packet, bytes, index);
+            printf("ENTRA NO CREATE?? %02x\n", bytes);
+            if (llwrite(packet, bytes) < 0) {
                 printf("Failed to send information frame\n");
-                //llclose(0);
+                llclose(0, ll);
                 return;
             }
             printf("Sending: %d/%d (%d%%) sent\n", count, st.st_size, (int) (((double)count / (double)st.st_size) *100));
         }
-        ret1 = createControlPacket(filename, st.st_size, 0, &packet);
+        printf("FAZ READ ?? %02x\n", bytes);
+        bytes = createControlPacket(filename, st.st_size, 0, &packet);
         
-        if (llwrite(packet, ret1) < 0) {
+        if (llwrite(packet, bytes) < 0) {
             printf("Failed to send information frame\n");
-            return;
         }
         close(file);
         
@@ -162,6 +162,9 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         }
         
     }
-
-    llclose(1, ll);
+    printf("AAAAAAAA\n");
+    if(llclose(1, ll)< 0){
+        printf("Couldn't close\n");
+    }
+    
 }

@@ -197,6 +197,7 @@ enum setState stateMachineDISC(unsigned char b, enum setState state){
 int llopen(LinkLayer connectionParameters)
 
 {
+    alarmCount = 0;
     (void)signal(SIGALRM, alarmHandler);
     // printf("%s", connectionParameters.serialPort);
     fd = open(connectionParameters.serialPort, O_RDWR | O_NOCTTY | O_NONBLOCK);
@@ -252,11 +253,9 @@ int llopen(LinkLayer connectionParameters)
         SET[3] = BCC_SET;
         SET[4] = FLAG;
         
-
         while(alarmCount < tries){
             state = START_STATE;
             int bytes;
-            (void)signal(SIGALRM, alarmHandler);
             if(alarmEnabled == FALSE){
                 bytes = write(fd, SET, 5);
                 alarm(timeout); // 3s para escrever
@@ -344,14 +343,14 @@ int llopen(LinkLayer connectionParameters)
 ////////////////////////////////////////////////
 int llwrite(const unsigned char *buf, int bufSize)
 {
+    alarmCount = 0;
+    (void)signal(SIGALRM, alarmHandler);
 
     char bcc2 = 0x00;
     for (int i = 0; i < bufSize; i++) {
         bcc2 = bcc2 ^ buf[i];
     }
     unsigned char infoFrame[600] = {0};
-
-    alarmCount = 0;
 
     infoFrame[0] = FLAG;
     infoFrame[1] = A;
@@ -402,12 +401,11 @@ int llwrite(const unsigned char *buf, int bufSize)
     int STOP = FALSE;
     unsigned char rcv[5];
     alarmCount = 0;
+    alarmEnabled = FALSE;
 
     while(alarmCount < tries){
-        (void)signal(SIGALRM, alarmHandler);
         if(alarmEnabled == FALSE){
             write(fd, infoFrame, index);
-            //sleep(1);
             printf("\nInfo Frame sent Ns = %d\n", infoFlag);
             alarm(timeout);
             alarmEnabled = TRUE;
@@ -619,11 +617,13 @@ int llclose(int showStatistics, LinkLayer connectionParameters)
     //trasmistor - sends DISC, sends UA
     //receiver - receives DISC, sends DISC
     printf("------------------------LLCLOSE--------------------\n");
+    alarmCount = 0;
     signal(SIGALRM,alarmHandler);
+    alarmEnabled = FALSE;
     printf("ROLE: %d\n", connectionParameters.role);
 
     if(connectionParameters.role == LlTx){
-        alarmCount = 0;
+        
         unsigned char array[5];
         array[0] = FLAG;
         array[1] = A;
@@ -636,22 +636,19 @@ int llclose(int showStatistics, LinkLayer connectionParameters)
             enum setState state = START_STATE;
             unsigned char b;
             int bytes;
-            (void)signal(SIGALRM, alarmHandler);
             if(alarmEnabled == FALSE){
                 bytes = write(fd, array, 5);
                 alarm(timeout); // 3s para escrever
                 alarmEnabled = TRUE;
-
-            }
-            if (bytes < 0){
-                printf("Emissor: Failed to send DISC\n");
-            }
-            else{
-                printf("Emissor: Sent DISC\n");
+                if (bytes < 0){
+                    printf("Emissor: Failed to send DISC\n");
+                }
+                else{
+                    printf("Emissor: Sent DISC\n");
+                }
             }
             
             //receber DISC
-            printf("Receiving DISC:\n");
             while (state != STOP_STATE)
             {
                 int bytesR= read(fd, &b, 1);
@@ -729,7 +726,6 @@ int llclose(int showStatistics, LinkLayer connectionParameters)
             enum setState state = START_STATE;
             unsigned char c;
             int bytes;
-            (void)signal(SIGALRM, alarmHandler);
             if(alarmEnabled == FALSE){
                 bytes = write(fd, array, 5);
                 alarm(timeout); // 3s para escrever

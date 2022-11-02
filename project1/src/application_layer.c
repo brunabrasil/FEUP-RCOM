@@ -43,7 +43,7 @@ int createControlPacket(char* filename, int fileSize, int start, unsigned char* 
 }
 
 int createDataPacket(unsigned char* packet, unsigned int nBytes, int index){
-    printf("\nDENTRO DO DATA PACKET\n");
+    //printf("\nDENTRO DO DATA PACKET\n");
     unsigned char buf[300] = {0};
     int l1 = nBytes/256;
 	int l2 = nBytes%256;
@@ -113,11 +113,10 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         unsigned int index = 0;
         int count = 0;
         while ((bytes = read(file, packet, 300-4)) > 0) {
-            printf("\n dentroo\n");
             index++;
             count += bytes;
             bytes = createDataPacket(&packet, bytes, index);
-            printf("ENTRA NO CREATE?? %02x\n", bytes);
+            //printf("ENTRA NO CREATE?? %02x\n", bytes);
             if (llwrite(packet, bytes) < 0) {
                 printf("Failed to send information frame\n");
                 llclose(0, ll);

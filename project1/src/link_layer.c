@@ -746,24 +746,8 @@ int llclose(int showStatistics, LinkLayer connectionParameters)
                 
                 printf("Receptor: Receiving UA\n");
             }
-            int result = read(fd, ua_rcv, 5);
-            if(result != -1 && ua_rcv != 0 && ua_rcv[0]==0x7E){
-             //se o UA estiver errado 
-                if(ua_rcv[2] != 0x07 || (ua_rcv[3] != (ua_rcv[1]^ua_rcv[2]))){
-                    printf("\nUA not correct\n");
-                    alarmEnabled = FALSE;
-                    continue;
-                }
-                            
-                else{   
-                    printf("\nUA correctly received\n");
-                    alarmEnabled = FALSE;
-                    //close(fd);
-                    break;
-                }
-            }
 
-            /* while (state != STOP_STATE)
+            while (state != STOP_STATE)
             {
                 int bytesR = read(fd, &d, 1);
                 if(bytesR <= 0){
@@ -776,13 +760,12 @@ int llclose(int showStatistics, LinkLayer connectionParameters)
             }
             if(state == STOP_STATE){
                 break;
-            } */
+            }
         }      
         
 
     }
     
-
     if (tcsetattr(fd, TCSANOW, &oldtio) == -1)
     {
         perror("tcsetattr");

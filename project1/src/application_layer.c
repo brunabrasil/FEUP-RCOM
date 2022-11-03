@@ -124,7 +124,6 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             }
             printf("Sending: %d/%d (%d%%) sent\n", count, st.st_size, (int) (((double)count / (double)st.st_size) *100));
         }
-        printf("FAZ READ ?? %02x\n", bytes);
         bytes = createControlPacket(filename, st.st_size, 0, &packet);
         
         if (llwrite(packet, bytes) < 0) {
@@ -147,6 +146,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             if(packet[0] == 0x02){ //start control
                 printf("\nStart control\n");
                 file = fopen(filename, "wb"); 
+                printf("\nfile %d\n", file);
             }
             else if(packet[0]==0x03){ //end control
                 printf("\nEnd control\n");

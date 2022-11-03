@@ -267,6 +267,7 @@ int llopen(LinkLayer connectionParameters)
                     printf("Sending: %x,%x,%x,%x,%x\n", SET[0], SET[1], SET[2], SET[3], SET[4]);
 
                     printf("Sent SET FRAME\n");
+ 
                 }
             }
 
@@ -276,6 +277,7 @@ int llopen(LinkLayer connectionParameters)
                 if(b_rcv <= 0){
                     break;
                 }
+                alarmEnabled = FALSE;
                 state = stateMachineUA(b, state);
             }
             
@@ -416,6 +418,8 @@ int llwrite(const unsigned char *buf, int bufSize)
         if(response > 0){
             if(rcv[2] != (!infoFlag << 7 | 0x05)){
                 printf("\nREJ Received\n");
+                alarmEnabled = FALSE;
+                printf("\nalarm enabled %d \n", alarmEnabled);
                 continue;
             }
             else if(rcv[3] != (rcv[1]^rcv[2])){
@@ -562,6 +566,9 @@ int llread(unsigned char *packet, int *sizePacket)
                 rFrame[2] = (!infoFlag << 7) | 0x05; //ver se tenho de negar ou nao
                 rFrame[3] = rFrame[1] ^ rFrame[2];
                 write(fd, rFrame, 5);
+                previousNumber = infoFlag;
+                if(infoFlag) infoFlag = 0;
+                else infoFlag = 1;
                 return -1;
             }   
             else{
@@ -730,22 +737,23 @@ int llclose(int showStatistics, LinkLayer connectionParameters)
                 bytes = write(fd, array, 5);
                 alarm(timeout); // 3s para escrever
                 alarmEnabled = TRUE;
+                if (bytes < 0){
+                    printf("Receptor: Failed to send DISC\n");
+                }
+                else{
+                    printf("Receptor: Sent DISC\n");
+                }
+                
+                printf("Receptor: Receiving UA\n");
             }
-            if (bytes < 0){
-                printf("Receptor: Failed to send DISC\n");
-            }
-            else{
-                printf("Receptor: Sent DISC\n");
-            }
-            
-            printf("Receptor: Receiving UA\n");
+
             while (state != STOP_STATE)
             {
                 int bytesR = read(fd, &c, 1);
                 if(bytesR <= 0){
                     break;
                 }
-                printf("Reading: %x\n", c); 
+                printf("Reading: %02x\n", c); 
 
                 state = stateMachineUA(c, state);
                 

@@ -423,7 +423,7 @@ int llwrite(const unsigned char *buf, int bufSize)
                 continue;
             }
             else if(rcv[3] != (rcv[1]^rcv[2])){
-                printf("\nRR NOT CORRECT\n");
+                printf("\nRR not correct\n");
                 alarmEnabled = FALSE;
                 continue;
             }
@@ -623,7 +623,7 @@ int llclose(int showStatistics, LinkLayer connectionParameters)
 {
     //trasmistor - sends DISC, sends UA
     //receiver - receives DISC, sends DISC
-    printf("------------------------LLCLOSE--------------------\n");
+    printf("----LLCLOSE----\n");
     alarmCount = 0;
     signal(SIGALRM,alarmHandler);
     alarmEnabled = FALSE;
@@ -727,11 +727,11 @@ int llclose(int showStatistics, LinkLayer connectionParameters)
         array[4] = FLAG;
         
         alarmCount = 0;
-        
+        unsigned char ua_rcv[5] = {0};
         while(alarmCount < connectionParameters.nRetransmissions){
 
             enum setState state = START_STATE;
-            unsigned char c;
+            unsigned char d;
             int bytes;
             if(alarmEnabled == FALSE){
                 bytes = write(fd, array, 5);
@@ -746,21 +746,37 @@ int llclose(int showStatistics, LinkLayer connectionParameters)
                 
                 printf("Receptor: Receiving UA\n");
             }
+            int result = read(fd, ua_rcv, 5);
+            if(result != -1 && ua_rcv != 0 && ua_rcv[0]==0x7E){
+             //se o UA estiver errado 
+                if(ua_rcv[2] != 0x07 || (ua_rcv[3] != (ua_rcv[1]^ua_rcv[2]))){
+                    printf("\nUA not correct\n");
+                    alarmEnabled = FALSE;
+                    continue;
+                }
+                            
+                else{   
+                    printf("\nUA correctly received\n");
+                    alarmEnabled = FALSE;
+                    //close(fd);
+                    break;
+                }
+            }
 
-            while (state != STOP_STATE)
+            /* while (state != STOP_STATE)
             {
-                int bytesR = read(fd, &c, 1);
+                int bytesR = read(fd, &d, 1);
                 if(bytesR <= 0){
                     break;
                 }
-                printf("Reading: %02x\n", c); 
+                printf("Reading: %02x\n", d); 
 
-                state = stateMachineUA(c, state);
+                state = stateMachineUA(d, state);
                 
             }
             if(state == STOP_STATE){
                 break;
-            }
+            } */
         }      
         
 

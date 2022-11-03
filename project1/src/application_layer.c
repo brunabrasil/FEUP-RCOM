@@ -161,7 +161,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         }
         
     }
-    printf("AAAAAAAA\n");
+
     if(llclose(1, ll)< 0){
         printf("Couldn't close\n");
     }

@@ -10,14 +10,14 @@ int createControlPacket(char* filename, int fileSize, int start, unsigned char* 
         printf("size of filename can't fit in 1 byte\n");
         return -1;
     }
-    unsigned char size_string[20]; //pq 20? ou 10
-    sprintf(size_string, "%02lx", fileSize); // stores the size of the file in a string , 02lX
+    unsigned char size_string[20];
+    sprintf(size_string, "%02lx", fileSize); // stores the size of the file in a string
     int sizeBytes = strlen(size_string) / 2;
 
     if(start) packet[0] = 0x02; //start
     else packet[0] = 0x03; // end
 
-    packet[1] = 0; // 0 -> tamanho do ficheiro 
+    packet[1] = 0; //tamanho do ficheiro 
     packet[2] = sizeBytes;
 
     int i = 4;
@@ -26,7 +26,7 @@ int createControlPacket(char* filename, int fileSize, int start, unsigned char* 
         i++;
 	}
 
-    packet[i] = 1; // 1 -> name of the file
+    packet[i] = 1; //name of the file
     i++; 
 
     int filename_size = strlen(filename);
@@ -43,7 +43,6 @@ int createControlPacket(char* filename, int fileSize, int start, unsigned char* 
 }
 
 int createDataPacket(unsigned char* packet, unsigned int nBytes, int index){
-    //printf("\nDENTRO DO DATA PACKET\n");
     unsigned char buf[300] = {0};
     int l1 = nBytes/256;
 	int l2 = nBytes%256;
@@ -82,7 +81,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
     ll.timeout = timeout;
 
     if (llopen(ll) == -1) {
-        printf("\nERROR: Couldn't estabilish the connection\n");
+        printf("\nCouldn't estabilish the connection\n");
         return;
     } else {
         printf("\nConnection estabilished\n");
@@ -116,7 +115,6 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             index++;
             count += bytes;
             bytes = createDataPacket(&packet, bytes, index);
-            //printf("ENTRA NO CREATE?? %02x\n", bytes);
             if (llwrite(packet, bytes) < 0) {
                 printf("Failed to send information frame\n");
                 llclose(0, ll);
@@ -139,7 +137,6 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             unsigned char packet[600] = {0};
             int sizePacket = 0;
             int response = llread(&packet, &sizePacket);
-            //printf("PACKET 0: %02x \n", packet[0]);
             if(response < 0){
                 continue;
             }

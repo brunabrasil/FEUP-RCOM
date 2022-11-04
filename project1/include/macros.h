@@ -1,15 +1,8 @@
 enum statePacket {
     packet_START, 
     packet_FLAG1, 
-    packet_A, 
-    packet_C, 
-    packet_BCC1, 
-    packet_TRANS, 
-    packet_DATA, 
-    packet_BCC2, 
-    packet_FLAG2, 
-    packet_STOP, 
-    packet_ERROR
+    packet_A,
+    packet_STOP
 };
 
 enum setState{

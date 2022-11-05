@@ -43,7 +43,8 @@ int createControlPacket(char* filename, int fileSize, int start, unsigned char* 
 }
 
 int createDataPacket(unsigned char* packet, unsigned int nBytes, int index){
-    unsigned char buf[300] = {0};
+
+    unsigned char buf[100] = {0}; //muda
     int l1 = nBytes/256;
 	int l2 = nBytes%256;
 
@@ -90,7 +91,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
     //start reading penguin
     
     if(ll.role == LlTx){
-        unsigned char packet[300];
+        unsigned char packet[100];//muda
         struct stat st;
         stat(filename, &st);
         int file = open(filename, O_RDONLY);
@@ -111,7 +112,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         unsigned int bytes;
         unsigned int index = 0;
         int count = 0;
-        while ((bytes = read(file, packet, 300-4)) > 0) {
+        while ((bytes = read(file, packet, 100-4)) > 0) {//muda
             index++;
             count += bytes;
             bytes = createDataPacket(&packet, bytes, index);
@@ -120,7 +121,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
                 llclose(0, ll);
                 return;
             }
-            printf("Sending: %d/%d (%d%%) sent\n", count, st.st_size, (int) (((double)count / (double)st.st_size) *100));
+            printf("Sending: %d/%d (%d%%)\n", count, st.st_size, (int) (((double)count / (double)st.st_size) *100));
         }
         bytes = createControlPacket(filename, st.st_size, 0, &packet);
         
@@ -143,7 +144,6 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             if(packet[0] == 0x02){ //start control
                 printf("\nStart control\n");
                 file = fopen(filename, "wb"); 
-                printf("\nfile %d\n", file);
             }
             else if(packet[0]==0x03){ //end control
                 printf("\nEnd control\n");

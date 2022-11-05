@@ -16,12 +16,11 @@ int alarmCount = 0;
 
 int fd;
 int timeout, tries, previousNumber = 1;
-int nTimeouts = 0, nRej = 0, nRR = 0;
 
 struct termios oldtio;
 struct termios newtio;
 
-#define BAUDRATE B38400
+//#define BAUDRATE B38400
 
 int infoFlag = 0;
 clock_t start;
@@ -197,7 +196,7 @@ enum setState stateMachineDISC(unsigned char b, enum setState state){
 int llopen(LinkLayer connectionParameters)
 
 {
-    start = clock();
+    start = clock();    
     alarmCount = 0;
     (void)signal(SIGALRM, alarmHandler);
     fd = open(connectionParameters.serialPort, O_RDWR | O_NOCTTY | O_NONBLOCK);
@@ -219,7 +218,7 @@ int llopen(LinkLayer connectionParameters)
     // Clear struct for new port settings
     memset(&newtio, 0, sizeof(newtio));
 
-    newtio.c_cflag = BAUDRATE | CS8 | CLOCAL | CREAD;
+    newtio.c_cflag = connectionParameters.baudRate | CS8 | CLOCAL | CREAD;
     newtio.c_iflag = IGNPAR;
     newtio.c_oflag = 0;
 
@@ -254,7 +253,6 @@ int llopen(LinkLayer connectionParameters)
         SET[4] = FLAG;
         
         while(alarmCount < tries){
-            
             state = START_STATE;
             int bytes;
             if(alarmEnabled == FALSE){
@@ -268,10 +266,7 @@ int llopen(LinkLayer connectionParameters)
                     printf("Sending: %x,%x,%x,%x,%x\n", SET[0], SET[1], SET[2], SET[3], SET[4]);
 
                     printf("Sent SET FRAME\n");
-                }
-                if(alarmCount>0){
-                    printf("TIME-OUT\n");
-                    nTimeouts++;
+ 
                 }
             }
 
@@ -281,7 +276,6 @@ int llopen(LinkLayer connectionParameters)
                 if(b_rcv <= 0){
                     break;
                 }
-                alarmEnabled = FALSE; //testar istooo no pc da salaa
                 state = stateMachineUA(b, state);
             }
             
@@ -293,7 +287,6 @@ int llopen(LinkLayer connectionParameters)
 
         if (alarmCount >= connectionParameters.nRetransmissions){
             printf("Error UA\n");
-            //printf("TIME-OUT\n");
             return -1;
         } 
         else printf("Received UA successfully\n");
@@ -301,7 +294,6 @@ int llopen(LinkLayer connectionParameters)
 
     else if (connectionParameters.role == LlRx)
     {
-        
         printf("I am the Receptor\n");
 
         enum setState stateR = START_STATE;
@@ -357,7 +349,7 @@ int llwrite(const unsigned char *buf, int bufSize)
     for (int i = 0; i < bufSize; i++) {
         bcc2 = bcc2 ^ buf[i];
     }
-    unsigned char infoFrame[600] = {0};
+    unsigned char infoFrame[200] = {0}; //muda
 
     infoFrame[0] = FLAG;
     infoFrame[1] = A;
@@ -411,16 +403,11 @@ int llwrite(const unsigned char *buf, int bufSize)
     alarmEnabled = FALSE;
 
     while(alarmCount < tries){
-
         if(alarmEnabled == FALSE){
             write(fd, infoFrame, index);
             printf("\nInfo Frame sent Ns = %d\n", infoFlag);
             alarm(timeout);
             alarmEnabled = TRUE;
-            if(alarmCount>0){
-                printf("TIME-OUT\n");
-                nTimeouts++;
-            }
         }
 
         int response = read(fd, rcv, 5);
@@ -428,7 +415,6 @@ int llwrite(const unsigned char *buf, int bufSize)
         if(response > 0){
             if(rcv[2] != (!infoFlag << 7 | 0x05)){
                 printf("\nREJ Received\n");
-                nRej++;
                 alarmEnabled = FALSE;
                 continue;
             }
@@ -439,12 +425,12 @@ int llwrite(const unsigned char *buf, int bufSize)
             }
             else{
                 printf("\nRR correctly received\n");
-                nRR++;
                 break;
             }
         }
     }
     if(alarmCount >= tries){
+        printf("TIME-OUT\n");
         return -1;
     }
     previousNumber = infoFlag;
@@ -558,10 +544,10 @@ int llread(unsigned char *packet, int *sizePacket)
     unsigned char bcc2 = 0x00;
     int size = 0; //tamanho da secçao de dados
     if(packet[4] == 0x01){ //pacote de dados
-        size = packet[6]*256 + packet[7] + 4 + 5; //+4 para contar com os bytes de controlo, numero de seq e tamanho ??? 
+        size = 256*packet[6] + packet[7] + 4 + 5; //+4 para contar com os bytes de controlo, numero de seq e tamanho ??? 
     } else{ //pacote de controlo
-        size += packet[6] + 3 + 4; //3 de C, T1 e L1 e 4 de FLAG, A, C, BCC
-        size += packet[size+2] + 2 +2; //2 de T2 e L2 e 2 do BCC2 e FLAG
+        size += packet[6] + 3 + 4; //3 de C, T1 e L1 e + 4 de FLAG, A, C, BCC
+        size += packet[size+2] + 2 +2; //2 para contar com T2 e L2 //+2 para contar com BCC2 e FLAG
     }
     for(int i = 4; i < size-1; i++){
         bcc2 = bcc2 ^ packet[i];
@@ -571,11 +557,11 @@ int llread(unsigned char *packet, int *sizePacket)
     if(packet[size-1] == bcc2){
         if(packet[4]==0x01){ // se for dados
             if(infoFrame[5] == previousNumber){  // conferir numero de sequencia
-                printf("\nDuplicate Frame. Sending RR\n");
+                printf("\nDuplicate Frame. Sending RR.\n");
                 rFrame[2] = (!infoFlag << 7) | 0x05;
                 rFrame[3] = rFrame[1] ^ rFrame[2];
                 write(fd, rFrame, 5);
-                //previousNumber = infoFrame[5];
+                //previousNumber = infoFlag;
                 if(infoFlag) infoFlag = 0;
                 else infoFlag = 1;
                 return -1;
@@ -598,6 +584,7 @@ int llread(unsigned char *packet, int *sizePacket)
 
         return -1;
     }
+    
 
     index = 0;
     unsigned char packetAux[400];
@@ -629,10 +616,10 @@ int llclose(int showStatistics, LinkLayer connectionParameters)
 {
     if(showStatistics){
         printf("\n---STATISTICS---\n");
-        double cpu_time_used = ((double) (clock() - start)) / CLOCKS_PER_SEC * 1000;
-        printf("\nExecution time: %f miliseconds.\n", cpu_time_used);
+        double time = ((double) (clock() - start)) / CLOCKS_PER_SEC * 1000;
+        printf("\nExecution time: %f miliseconds\n", time);
 
-    }
+    }  
     sleep(1);
     printf("----LLCLOSE----\n");
     alarmCount = 0;
@@ -664,10 +651,6 @@ int llclose(int showStatistics, LinkLayer connectionParameters)
                 else{
                     printf("Emissor: Sent DISC\n");
                 }
-                if(alarmCount>0){
-                    printf("TIME-OUT\n");
-                    nTimeouts++;
-                }
             }
             
             //receber DISC
@@ -687,7 +670,7 @@ int llclose(int showStatistics, LinkLayer connectionParameters)
         }
         if (alarmCount >= connectionParameters.nRetransmissions){
             printf("Didn't receive DISC\n");
-            //printf("TIME-OUT\n");
+            printf("TIME-OUT\n");
 
             return -1;
         } 
@@ -759,10 +742,6 @@ int llclose(int showStatistics, LinkLayer connectionParameters)
                 else{
                     printf("Receptor: Sent DISC\n");
                 }
-                if(alarmCount>0){
-                    printf("TIME-OUT\n");
-                    nTimeouts++;
-                }
                 
                 printf("Receptor: Receiving UA\n");
             }
@@ -793,7 +772,6 @@ int llclose(int showStatistics, LinkLayer connectionParameters)
     }
 
     close(fd);
-
 
     return 1;
 }

@@ -1,7 +1,7 @@
 enum statePacket {
     packet_START, 
     packet_FLAG1, 
-    packet_A,
+    packet_A, 
     packet_STOP
 };
 

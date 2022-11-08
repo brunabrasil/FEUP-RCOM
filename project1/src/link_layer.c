@@ -20,8 +20,6 @@ int timeout, tries, previousNumber = 1;
 struct termios oldtio;
 struct termios newtio;
 
-//#define BAUDRATE B38400
-
 int infoFlag = 0;
 clock_t start;
 
@@ -349,7 +347,7 @@ int llwrite(const unsigned char *buf, int bufSize)
     for (int i = 0; i < bufSize; i++) {
         bcc2 = bcc2 ^ buf[i];
     }
-    unsigned char infoFrame[200] = {0}; //muda
+    unsigned char infoFrame[1000] = {0}; //muda
 
     infoFrame[0] = FLAG;
     infoFrame[1] = A;
@@ -461,7 +459,7 @@ int llread(unsigned char *packet, int *sizePacket)
             continue;
         }
 
-        //state machine
+        //state machine pra cabeçalho
         switch(statePac){
             case packet_START:
                 if (c == FLAG) {
@@ -495,16 +493,15 @@ int llread(unsigned char *packet, int *sizePacket)
                 break;
         }
     }
-    statePac = START_STATE;
 
     unsigned char rFrame[5];
     rFrame[0] = FLAG;
     rFrame[1] = A;
     rFrame[4] = FLAG;
 
-    if(infoFrame[2] != (infoFlag << 6)){ 
+    if(infoFrame[2] != (infoFlag << 6)){ //campo de controlo
 
-        printf("\nInfo Frame not received correctly\nSending REJ.\n");
+        printf("\nInfo Frame not received correctly\nSending REJ\n");
         rFrame[2] = (!infoFlag << 7) | 0x01;
         rFrame[3] = A ^ rFrame[2];
         write(fd, rFrame, 5);
@@ -512,8 +509,8 @@ int llread(unsigned char *packet, int *sizePacket)
         printf("return on line 540\n");
         return -1;
     }
-    else if ((infoFrame[1]^infoFrame[2]) != infoFrame[3]){
-        printf("\nError in the protocol\nSending REJ.\n");
+    else if ((infoFrame[1]^infoFrame[2]) != infoFrame[3]){ //bcc1
+        printf("\nError in the protocol\nSending REJ\n");
         rFrame[2] = (!infoFlag << 7) | 0x01;
         rFrame[3] = A ^ rFrame[2];
         write(fd, rFrame, 5);
@@ -542,11 +539,11 @@ int llread(unsigned char *packet, int *sizePacket)
         }
     }
     unsigned char bcc2 = 0x00;
-    int size = 0; //tamanho da secçao de dados
+    int size = 0;
     if(packet[4] == 0x01){ //pacote de dados
-        size = 256*packet[6] + packet[7] + 4 + 5; //+4 para contar com os bytes de controlo, numero de seq e tamanho ??? 
+        size = 256*packet[6] + packet[7] + 4 + 5;
     } else{ //pacote de controlo
-        size += packet[6] + 3 + 4; //3 de C, T1 e L1 e + 4 de FLAG, A, C, BCC
+        size += packet[6] + 3 + 4; //C, T1, L1, FLAG, A, C, BCC
         size += packet[size+2] + 2 +2; //2 para contar com T2 e L2 //+2 para contar com BCC2 e FLAG
     }
     for(int i = 4; i < size-1; i++){
@@ -589,17 +586,17 @@ int llread(unsigned char *packet, int *sizePacket)
     index = 0;
     unsigned char packetAux[400];
     
-    for(int i = 4; i < size-1; i++){ //2
+    for(int i = 4; i < size-1; i++){
         packetAux[index] = packet[i];
         index++;
     }
     
-    (*sizePacket) = size - 5; //6
-    //por o packet a 0
+    (*sizePacket) = size - 5;
+    //esvaziar packet
     for(int i=0; i < (*sizePacket); i++){
         packet[i] = 0;
     }
-
+    //guardar dados
     for(int i=0; i<(*sizePacket); i++){
         packet[i] = packetAux[i];
     }
@@ -643,7 +640,7 @@ int llclose(int showStatistics, LinkLayer connectionParameters)
             int bytes;
             if(alarmEnabled == FALSE){
                 bytes = write(fd, array, 5);
-                alarm(timeout); // 3s para escrever
+                alarm(timeout);
                 alarmEnabled = TRUE;
                 if (bytes < 0){
                     printf("Emissor: Failed to send DISC\n");

@@ -44,14 +44,12 @@ int createControlPacket(char* filename, int fileSize, int start, unsigned char* 
 
 int createDataPacket(unsigned char* packet, unsigned int nBytes, int index){
 
-    unsigned char buf[100] = {0}; //muda
-    int l1 = nBytes/256;
-	int l2 = nBytes%256;
+    unsigned char buf[500] = {0}; //muda
 
-    buf[0] = 0x01;
-	buf[1] = index%255;
-    buf[2] = l1;
-    buf[3] = l2;
+    buf[0] = 0x01; //C
+	buf[1] = index%255; //numero de sequencia
+    buf[2] = nBytes/256;//L2
+    buf[3] = nBytes%256;//L1
 
     for(int i=0; i < nBytes; i++){
         buf[i+4] = packet[i];
@@ -91,7 +89,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
     //start reading penguin
     
     if(ll.role == LlTx){
-        unsigned char packet[100];//muda
+        unsigned char packet[500];//muda
         struct stat st;
         stat(filename, &st);
         int file = open(filename, O_RDONLY);
@@ -112,7 +110,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         unsigned int bytes;
         unsigned int index = 0;
         int count = 0;
-        while ((bytes = read(file, packet, 100-4)) > 0) {//muda
+        while ((bytes = read(file, packet, 500-4)) > 0) {//muda
             index++;
             count += bytes;
             bytes = createDataPacket(&packet, bytes, index);
@@ -123,7 +121,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             }
             printf("Sending: %d/%d (%d%%)\n", count, st.st_size, (int) (((double)count / (double)st.st_size) *100));
         }
-        bytes = createControlPacket(filename, st.st_size, 0, &packet);
+        bytes = createControlPacket(filename, st.st_size, 0, &packet); //end
         
         if (llwrite(packet, bytes) < 0) {
             printf("Failed to send information frame\n");

@@ -12,6 +12,7 @@ volatile int STOP = FALSE;
 int alarmEnabled = FALSE;
 int alarmCount = 0;
 
+
 #define BUF_SIZE 256
 
 int fd;
@@ -44,7 +45,7 @@ enum setState stateMachineUA (unsigned char b, enum setState state){
     case FLAG_RCV:
         // se encontrar A_RCV parra pro proximo state
         if(b == A) state = A_RCV;
-
+        else if(b == A_RX) state = A_RCV;
         // se encontrar a mesma flag, FLAG_RCV, fica no mesmo estado
         else if (b == FLAG) state = FLAG_RCV;
 
@@ -93,7 +94,7 @@ enum setState stateMachineSET(unsigned char b, enum setState state){
     case FLAG_RCV:
         // se encontrar A_RCV parra pro proximo state
         if(b == A) state = A_RCV;
-
+    
         // se encontrar a mesma flag, FLAG_RCV, fica no mesmo estado
         else if (b == FLAG) state = FLAG_RCV;
 
@@ -194,7 +195,7 @@ enum setState stateMachineDISC(unsigned char b, enum setState state){
 int llopen(LinkLayer connectionParameters)
 
 {
-    start = clock();    
+    start = clock();
     alarmCount = 0;
     (void)signal(SIGALRM, alarmHandler);
     fd = open(connectionParameters.serialPort, O_RDWR | O_NOCTTY | O_NONBLOCK);
@@ -312,7 +313,7 @@ int llopen(LinkLayer connectionParameters)
 
         unsigned char UA[5];
         UA[0] = FLAG;
-        UA[1] = A;
+        UA[1] = A_RX;
         UA[2] = C_UA;
         UA[3] = BCC_UA;
         UA[4] = FLAG;
@@ -347,7 +348,7 @@ int llwrite(const unsigned char *buf, int bufSize)
     for (int i = 0; i < bufSize; i++) {
         bcc2 = bcc2 ^ buf[i];
     }
-    unsigned char infoFrame[1000] = {0}; //muda
+    unsigned char infoFrame[1000] = {0};
 
     infoFrame[0] = FLAG;
     infoFrame[1] = A;
@@ -395,6 +396,7 @@ int llwrite(const unsigned char *buf, int bufSize)
     infoFrame[index] = FLAG;
     index++;
 
+
     int STOP = FALSE;
     unsigned char rcv[5];
     alarmCount = 0;
@@ -403,6 +405,7 @@ int llwrite(const unsigned char *buf, int bufSize)
     while(alarmCount < tries){
         if(alarmEnabled == FALSE){
             write(fd, infoFrame, index);
+            //usleep(50*1000);
             printf("\nInfo Frame sent Ns = %d\n", infoFlag);
             alarm(timeout);
             alarmEnabled = TRUE;
@@ -448,7 +451,7 @@ int llwrite(const unsigned char *buf, int bufSize)
 int llread(unsigned char *packet, int *sizePacket)
 {   
     unsigned char c;
-    unsigned char infoFrame[600];
+    unsigned char infoFrame[1000];
     int sizeInfoFrame = 0;
     enum statePacket statePac = packet_START;
     
@@ -502,7 +505,7 @@ int llread(unsigned char *packet, int *sizePacket)
     if(infoFrame[2] != (infoFlag << 6)){ //campo de controlo
 
         printf("\nInfo Frame not received correctly\nSending REJ\n");
-        rFrame[2] = (!infoFlag << 7) | 0x01;
+        rFrame[2] = (infoFlag << 7) | 0x01;
         rFrame[3] = A ^ rFrame[2];
         write(fd, rFrame, 5);
 
@@ -511,7 +514,7 @@ int llread(unsigned char *packet, int *sizePacket)
     }
     else if ((infoFrame[1]^infoFrame[2]) != infoFrame[3]){ //bcc1
         printf("\nError in the protocol\nSending REJ\n");
-        rFrame[2] = (!infoFlag << 7) | 0x01;
+        rFrame[2] = (infoFlag << 7) | 0x01;
         rFrame[3] = A ^ rFrame[2];
         write(fd, rFrame, 5);
 
@@ -558,7 +561,6 @@ int llread(unsigned char *packet, int *sizePacket)
                 rFrame[2] = (!infoFlag << 7) | 0x05;
                 rFrame[3] = rFrame[1] ^ rFrame[2];
                 write(fd, rFrame, 5);
-                //previousNumber = infoFlag;
                 if(infoFlag) infoFlag = 0;
                 else infoFlag = 1;
                 return -1;
@@ -573,9 +575,9 @@ int llread(unsigned char *packet, int *sizePacket)
         write(fd, rFrame, 5);
     }
     
-    else {
+    else {//erro no bcc2
         printf("\nError in the data. Sending REJ.\n");
-        rFrame[2] = (!infoFlag << 7) | 0x01;
+        rFrame[2] = (infoFlag << 7) | 0x01;
         rFrame[3] = rFrame[1] ^ rFrame[2];
         write(fd, rFrame, 5);
 
@@ -618,7 +620,7 @@ int llclose(int showStatistics, LinkLayer connectionParameters)
 
     }  
     sleep(1);
-    printf("----LLCLOSE----\n");
+    printf("\n----LLCLOSE----\n");
     alarmCount = 0;
     signal(SIGALRM,alarmHandler);
     alarmEnabled = FALSE;

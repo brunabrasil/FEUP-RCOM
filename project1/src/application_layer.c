@@ -3,6 +3,7 @@
 #include "../include/application_layer.h"
 
 
+
 int createControlPacket(char* filename, int fileSize, int start, unsigned char* packet){
     
     //L1 é so um byte ent V (o filename) n pode passar de 255
@@ -11,7 +12,7 @@ int createControlPacket(char* filename, int fileSize, int start, unsigned char* 
         return -1;
     }
     unsigned char size_string[20];
-    sprintf(size_string, "%02lx", fileSize); // stores the size of the file in a string
+    sprintf(size_string, "%02lx", fileSize);
     int sizeBytes = strlen(size_string) / 2;
 
     if(start) packet[0] = 0x02; //start
@@ -21,12 +22,12 @@ int createControlPacket(char* filename, int fileSize, int start, unsigned char* 
     packet[2] = sizeBytes;
 
     int i = 4;
-    for(int j = (sizeBytes - 1); j>-1; j--){
+    for(int j = (sizeBytes - 1); j > -1; j--){
 		packet[i] = fileSize >> (j*8);
         i++;
 	}
 
-    packet[i] = 1; //name of the file
+    packet[i] = 1; //nome do ficheiro
     i++; 
 
     int filename_size = strlen(filename);
@@ -44,15 +45,15 @@ int createControlPacket(char* filename, int fileSize, int start, unsigned char* 
 
 int createDataPacket(unsigned char* packet, unsigned int nBytes, int index){
 
-    unsigned char buf[500] = {0}; //muda
+    unsigned char buf[500] = {0};
 
     buf[0] = 0x01; //C
 	buf[1] = index%255; //numero de sequencia
     buf[2] = nBytes/256;//L2
     buf[3] = nBytes%256;//L1
 
-    for(int i=0; i < nBytes; i++){
-        buf[i+4] = packet[i];
+    for(int i = 4; i < nBytes; i++){ //mudei isto, sera q da?
+        buf[i] = packet[i];
     }
 
     for (int j = 0; j < (nBytes+4); j++) {
@@ -86,10 +87,9 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         printf("\nConnection estabilished\n");
     }
 
-    //start reading penguin
     
     if(ll.role == LlTx){
-        unsigned char packet[500];//muda
+        unsigned char packet[500];
         struct stat st;
         stat(filename, &st);
         int file = open(filename, O_RDONLY);
@@ -110,7 +110,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         unsigned int bytes;
         unsigned int index = 0;
         int count = 0;
-        while ((bytes = read(file, packet, 500-4)) > 0) {//muda
+        while ((bytes = read(file, packet, 500-4)) > 0) {
             index++;
             count += bytes;
             bytes = createDataPacket(&packet, bytes, index);

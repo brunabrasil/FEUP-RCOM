@@ -11,7 +11,7 @@ typedef struct data {
     char user[128];
     char password[128];
     char host[256];
-    char path[240];
+    char url_path[240];
     char fileName[128];
     char ip[128];   
 } data;
@@ -21,66 +21,66 @@ int getIp(char *host, struct data *data){
     struct hostent *h;
 
     if ((h = gethostbyname(host)) == NULL){
-        herror("gethostbyname()");
+        herror("Error: gethostbyname()");
         return 1;
     }
 
-    printf("IP Address : %s\n", inet_ntoa(*((struct in_addr *) h->h_addrtype)));
+    printf("IP Address : %s\n", inet_ntoa(*((struct in_addr *) h->h_addr)));
 
-    strcpy(data->ip,inet_ntoa(*((struct in_addr *) h->h_addrtype)));
+    strcpy(data->ip,inet_ntoa(*((struct in_addr *) h->h_addr)));
 
     return 0;
 }
 
-int getFileName(struct data * data){
+int getFileName(struct data *infoData){
   char fullpath[256];
 
-  strcpy(fullpath, data->path);
+  strcpy(fullpath, infoData->url_path);
 
   char* token = strtok(fullpath, "/");
 
   while(token != NULL){
-    strcpy(data->fileName, token);
+    strcpy(infoData->fileName, token);
     token = strtok(NULL, "/");
   }
 
   return 0;
 }
 
-int parseData(char *url, struct data *data ){
+int parseData(char *url, struct data *infoData ){
+
     char* ftp = strtok(url, "/");       // ftp:
-    char* url = strtok(NULL, "/");  // [<user>:<password>@]<host>
-    char* path = strtok(NULL, "");      // <url-path>
+    char* credentials = strtok(NULL, "/");  // [<user>:<password>@]<host>
+    char* url_path = strtok(NULL, "");      // <url-path>
 
     if (strcmp(ftp, "ftp:") != 0){
         printf("Error: Not using ftp\n");
         return 1;
     }
 
-    char* user = strtok(url, ":");
-    char* pass = strtok(NULL, "@");
-
+    char* user = strtok(credentials, ":");
+    char* password = strtok(NULL, "@");
 
     // no user:password given
-    if (pass == NULL){
+    if (password == NULL){
         user = "anonymous";
-        pass = "anonymous";
-        strcpy(data->host, url);
+        password = "anonymous";
+        strcpy(infoData->host, credentials);
     } else{
-        strcpy(data->host, strtok(NULL, ""));
+        strcpy(infoData->host, strtok(NULL, ""));
     }
 
-    strcpy(data->path, path);
-    strcpy(data->user, user);
-    strcpy(data->password, pass);
+    strcpy(infoData->url_path, url_path);
+    strcpy(infoData->user, user);
+    strcpy(infoData->password, password);
 
-    if(getIp(data->host,data) != 0){
-        printf("Error resolving host name\n");
+    if(getIp(infoData->host, infoData) != 0){
+        printf("Error: resolving host name\n");
         return 1;
     }
 
-    if(getFileName(data) != 0){
-        perror("reading filename\n");
+    if(getFileName(infoData) != 0){
+        perror("Error: reading filename\n");
         exit(1);
     }
 
@@ -99,21 +99,20 @@ int startConnection(char *ip, int port, int *sockfd){
 
     /*open a TCP socket*/
     if ((*sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        perror("socket()");
+        perror("Error: socket()");
         exit(-1);
     }
 
     /*connect to the server*/
     if (connect(*sockfd, (struct sockaddr *) &server_addr, sizeof(server_addr)) < 0) {
-        perror("connect()");
+        perror("Error: connect()");
         exit(-1);
     }
 
     return 0;
-
 }
 
-void readIpPort(char * ip, int *port, FILE * readSockect){
+void gerIpAndPort(char * ip, int *port, FILE * readSockect){
     char* buf;
     size_t bytesRead;
 
@@ -126,16 +125,15 @@ void readIpPort(char * ip, int *port, FILE * readSockect){
     }
 
     strtok(buf, "(");
-    char*ip1 = strtok(NULL, ",");
-    char*ip2 = strtok(NULL, ",");
-    char*ip3 = strtok(NULL, ",");
-    char*ip4 = strtok(NULL, ",");
-    char*p1 = strtok(NULL, ",");
-    char*p2 = strtok(NULL, ")");
+    char* ip1 = strtok(NULL, ",");
+    char* ip2 = strtok(NULL, ",");
+    char* ip3 = strtok(NULL, ",");
+    char* ip4 = strtok(NULL, ",");
+    char* port1 = strtok(NULL, ",");
+    char* port2 = strtok(NULL, ")");
 
     sprintf(ip, "%s.%s.%s.%s", ip1, ip2, ip3, ip4);
-    *port = atoi(p1)*256 + atoi(p2);
-
+    *port = atoi(port1)*256 + atoi(port2);
 }
 
 int sendCommand(int sockfd, char * command){
@@ -144,10 +142,10 @@ int sendCommand(int sockfd, char * command){
     bSent = write(sockfd, command, strlen(command));
 
     if (bSent == 0){
-        printf("sendCommand: connection closed\n");
+        printf("sendCommand: Connection closed\n");
         return 1;
     } else if (bSent == -1){
-        printf("error sending command\n");
+        printf("sending command\n");
         return 1;
     }
 
@@ -174,7 +172,7 @@ int readReply(FILE * readSockect){
             code = strtol(buf, &aux, 10); 
             
             if(code >= 500 && code <= 559){
-                printf("Error\n");
+                printf("Error!!\n");
                 exit(1);
             }
             break;
@@ -190,14 +188,15 @@ int readFile(char *fileName, int sockfdReceive ){
     FILE *file = fopen(fileName, "w");
 
     size_t bRead;
-    char buf[1];
+    char c[1];
 
-    bRead = read(sockfdReceive, buf, 1);
+    bRead = read(sockfdReceive, c, 1);
 
-    while(bRead != 0){
+    while(bRead != 0) {
         if(bRead > 0){
-            fputc(buf[0], file);        
+            fputc(c[0], file);        
         }
+        bRead = read(sockfdReceive, c, 1);
     }
         
     fclose(file);
@@ -217,12 +216,12 @@ int main(int argc, char **argv) {
     int sockfd, sockfdReceive;
 
     if(parseData(argv[1], &dataInfo) != 0){
-        printf("Error parsing input\n");
+        printf("Error: Parsing input\n");
         return 1;
     }
     
     if(startConnection(dataInfo.ip, 21, &sockfd) != 0){
-        printf("Error starting connection\n");
+        printf("Error: Starting connection\n");
         return 1;
     }
 
@@ -248,17 +247,17 @@ int main(int argc, char **argv) {
     //read ip and port 
     char ip[32];
     int port;
-    readIpPort(ip, &port, readSockect);
+    gerIpAndPort(ip, &port, readSockect);
     printf("ip: %s\n",ip);
     printf("port: %i\n", port);
 
     //open connection to receive data
     if(startConnection(ip, port, &sockfdReceive) != 0){
-        printf("Error starting connection\n");
+        printf("Error: Starting connection\n");
         return 1;
     }
 
-    sprintf(command, "retr %s\r\n",dataInfo.path);
+    sprintf(command, "retr %s\r\n",dataInfo.url_path);
     sendCommand(sockfd,command);
     readReply(readSockect);
 

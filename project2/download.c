@@ -5,22 +5,18 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <netdb.h>
-
 #include <string.h>
 
-
-
-
-typedef struct data
-{
+typedef struct data {
     char user[128];
     char password[128];
     char host[256];
     char path[240];
     char fileName[128];
     char ip[128];   
-}data;
+} data;
 
+// function given by professors
 int getIp(char *host, struct data *data){
     struct hostent *h;
 
@@ -29,27 +25,31 @@ int getIp(char *host, struct data *data){
         return 1;
     }
 
-    printf("IP Address : %s\n", inet_ntoa(*((struct in_addr *) h->h_addr)));
+    printf("IP Address : %s\n", inet_ntoa(*((struct in_addr *) h->h_addrtype)));
 
-    strcpy(data->ip,inet_ntoa(*((struct in_addr *) h->h_addr)));
+    strcpy(data->ip,inet_ntoa(*((struct in_addr *) h->h_addrtype)));
 
     return 0;
 }
 
 int getFileName(struct data * data){
   char fullpath[256];
+
   strcpy(fullpath, data->path);
+
   char* token = strtok(fullpath, "/");
-  while( token != NULL ) {
+
+  while(token != NULL){
     strcpy(data->fileName, token);
     token = strtok(NULL, "/");
   }
+
   return 0;
 }
 
 int parseData(char *url, struct data *data ){
     char* ftp = strtok(url, "/");       // ftp:
-    char* urlrest = strtok(NULL, "/");  // [<user>:<password>@]<host>
+    char* url = strtok(NULL, "/");  // [<user>:<password>@]<host>
     char* path = strtok(NULL, "");      // <url-path>
 
     if (strcmp(ftp, "ftp:") != 0){
@@ -57,24 +57,22 @@ int parseData(char *url, struct data *data ){
         return 1;
     }
 
-    char* user = strtok(urlrest, ":");
+    char* user = strtok(url, ":");
     char* pass = strtok(NULL, "@");
 
 
     // no user:password given
-    if (pass == NULL)
-    {
+    if (pass == NULL){
         user = "anonymous";
-        pass = "pass";
-        strcpy(data->host, urlrest);
-    } else
+        pass = "anonymous";
+        strcpy(data->host, url);
+    } else{
         strcpy(data->host, strtok(NULL, ""));
-
+    }
 
     strcpy(data->path, path);
     strcpy(data->user, user);
     strcpy(data->password, pass);
-
 
     if(getIp(data->host,data) != 0){
         printf("Error resolving host name\n");
@@ -89,6 +87,7 @@ int parseData(char *url, struct data *data ){
     return 0;
 }
 
+// function given by professors
 int startConnection(char *ip, int port, int *sockfd){
     struct sockaddr_in server_addr;
 
@@ -105,9 +104,7 @@ int startConnection(char *ip, int port, int *sockfd){
     }
 
     /*connect to the server*/
-    if (connect(*sockfd,
-                (struct sockaddr *) &server_addr,
-                sizeof(server_addr)) < 0) {
+    if (connect(*sockfd, (struct sockaddr *) &server_addr, sizeof(server_addr)) < 0) {
         perror("connect()");
         exit(-1);
     }
@@ -142,32 +139,34 @@ void readIpPort(char * ip, int *port, FILE * readSockect){
 }
 
 int sendCommand(int sockfd, char * command){
-    int bytesSent;
-    bytesSent = write(sockfd, command, strlen(command));
+    int bSent;
 
-    if(bytesSent == 0){
+    bSent = write(sockfd, command, strlen(command));
+
+    if (bSent == 0){
         printf("sendCommand: connection closed\n");
         return 1;
-    }
-    if(bytesSent == -1){
+    } else if (bSent == -1){
         printf("error sending command\n");
         return 1;
     }
+
     printf("%s\n",command);
+
     return 0;
 }
 
 int readReply(FILE * readSockect){
     long code;
-    char * aux;
+    char *aux;
     
     char *buf;
     size_t bufsize = 256;
     size_t characters;
 
-
     while(1){
-        buf = (char *)malloc(bufsize * sizeof(char));
+        buf = (char*)malloc(bufsize * sizeof(char));
+
         characters = getline(&buf,&bufsize,readSockect);
         printf("> %s", buf);
         
@@ -178,26 +177,28 @@ int readReply(FILE * readSockect){
                 printf("Error\n");
                 exit(1);
             }
-            //printf("Code: %li\n", code);
             break;
         }
+
         free(buf);
     }  
 
     return 0;
 }
 
-int readToFile(char *fileName, int sockfdReceive ){
+int readFile(char *fileName, int sockfdReceive ){
     FILE *file = fopen(fileName, "w");
 
-    size_t bytesRead;
+    size_t bRead;
     char buf[1];
-    do {
-        bytesRead = read(sockfdReceive, buf, 1);
-        if(bytesRead > 0){
+
+    bRead = read(sockfdReceive, buf, 1);
+
+    while(bRead != 0){
+        if(bRead > 0){
             fputc(buf[0], file);        
         }
-    }while(bytesRead != 0);
+    }
         
     fclose(file);
     return 0;
@@ -208,9 +209,7 @@ int main(int argc, char **argv) {
 
     if(argc != 2){
           printf("Incorrect program usage\n"
-               "Usage: download ftp://<user>:<password>@<host>/<url> \n"
-               "Example anonymous user: download ftp://ftp.up.pt/pub/kodi/timestamp.txt \n"
-               "Example other user: download ftp://userName:password@ftp.up.pt/pub/kodi/timestamp.txt \n");
+                "Usage: download ftp://<user>:<password>@<host>/<url> \n");
         exit(1);
     }
 
@@ -228,20 +227,21 @@ int main(int argc, char **argv) {
     }
 
     FILE * readSockect = fdopen(sockfd, "r");
-    
     readReply(readSockect);
     
-    //credentials
+    // credentials
     char command[256];
-    sprintf(command, "user %s\n",dataInfo.user);
+    sprintf(command, "user %s\n", dataInfo.user);
+
     sendCommand(sockfd,command);
-    //sleep(1);
     readReply(readSockect);
+
     sprintf(command, "pass %s\n",dataInfo.password);
+
     sendCommand(sockfd,command);
     readReply(readSockect);
     
-    //set mode
+    // set mode
     sprintf(command, "pasv \n");
     sendCommand(sockfd,command);
 
@@ -262,12 +262,11 @@ int main(int argc, char **argv) {
     sendCommand(sockfd,command);
     readReply(readSockect);
 
-    readToFile(dataInfo.fileName, sockfdReceive);
+    readFile(dataInfo.fileName, sockfdReceive);
 
     //close
     sprintf(command, "quit \r\n");
     sendCommand(sockfd,command);
     
     return 0;
-
 }

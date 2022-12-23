@@ -25,9 +25,8 @@ int getIp(char *host, struct urlData *urlData){
         return 1;
     }
 
-    printf("IP Address : %s\n", inet_ntoa(*((struct in_addr *) h->h_addr)));
-
     strcpy(urlData->ip,inet_ntoa(*((struct in_addr *) h->h_addr)));
+    printf("IP Address : %s\n", inet_ntoa(*((struct in_addr *) h->h_addr)));
 
     return 0;
 }

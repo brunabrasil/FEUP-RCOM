@@ -112,29 +112,27 @@ int startConnection(char *ip, int port, int *sockfd){
 }
 
 void gerIpAndPort(char * ip, int *port, FILE * readSockect){
-    char* buf;
-    size_t bytesRead;
+    char *line = NULL;
+    size_t len = 0;
 
     while(1){
-        getline(&buf, &bytesRead, readSockect);
-        printf("> %s", buf);
-        if(buf[3] == ' '){
+        getline(&line, &len, readSockect);
+        printf("> %s", line);
+        if(line[3] == ' '){
             break;
         }
     }
 
-    strtok(buf, "(");
-    char* ip1 = strtok(NULL, ",");
-    char* ip2 = strtok(NULL, ",");
-    char* ip3 = strtok(NULL, ",");
-    char* ip4 = strtok(NULL, ",");
-    char* port1 = strtok(NULL, ",");
-    char* port2 = strtok(NULL, ")");
+    int ip_address[4];
+    int port_address[2];
 
-    sprintf(ip, "%s.%s.%s.%s", ip1, ip2, ip3, ip4);
-    *port = atoi(port1)*256 + atoi(port2);
+    sscanf(line, "227 Entering Passive Mode (%d, %d, %d, %d, %d, %d).\n", &ip_address[0], &ip_address[1], &ip_address[2], &ip_address[3], &port_address[0], &port_address[1]);
+    free(line);
+
+    sprintf(ip, "%d.%d.%d.%d", ip_address[0], ip_address[1], ip_address[2], ip_address[3]);
+    *port = port_address[0] * 256 + port_address[1];
 }
-
+ 
 int sendCommandToServer (int sockfd, char * command){
     int bSent;
 

@@ -4,4 +4,5 @@
 Projects for the Computer Networks ([Redes de Computadores](https://sigarra.up.pt/feup/pt/ucurr_geral.ficha_uc_view?pv_ocorrencia_id=501687 "course page")) course.
 
 - **First project**: transfering files between computers with a serial port
+- **Second project**: configuration of a computer network, development of a FTP protocol based download application.
 

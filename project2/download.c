@@ -7,17 +7,17 @@
 #include <netdb.h>
 #include <string.h>
 
-typedef struct data {
+typedef struct urlData {
     char user[128];
     char password[128];
     char host[256];
     char url_path[240];
     char fileName[128];
     char ip[128];   
-} data;
+} urlData;
 
 // function given by professors
-int getIp(char *host, struct data *data){
+int getIp(char *host, struct urlData *urlData){
     struct hostent *h;
 
     if ((h = gethostbyname(host)) == NULL){
@@ -27,12 +27,12 @@ int getIp(char *host, struct data *data){
 
     printf("IP Address : %s\n", inet_ntoa(*((struct in_addr *) h->h_addr)));
 
-    strcpy(data->ip,inet_ntoa(*((struct in_addr *) h->h_addr)));
+    strcpy(urlData->ip,inet_ntoa(*((struct in_addr *) h->h_addr)));
 
     return 0;
 }
 
-int getFileName(struct data *infoData){
+int getFileName(struct urlData *infoData){
   char fullpath[256];
 
   strcpy(fullpath, infoData->url_path);
@@ -47,7 +47,7 @@ int getFileName(struct data *infoData){
   return 0;
 }
 
-int parseData(char *url, struct data *infoData ){
+int parseUrlData(char *url, struct urlData *infoData ){
 
     char* ftp = strtok(url, "/");       // ftp:
     char* credentials = strtok(NULL, "/");  // [<user>:<password>@]<host>
@@ -136,7 +136,7 @@ void gerIpAndPort(char * ip, int *port, FILE * readSockect){
     *port = atoi(port1)*256 + atoi(port2);
 }
 
-int sendCommand(int sockfd, char * command){
+int sendCommandToServer (int sockfd, char * command){
     int bSent;
 
     bSent = write(sockfd, command, strlen(command));
@@ -145,7 +145,7 @@ int sendCommand(int sockfd, char * command){
         printf("sendCommand: Connection closed\n");
         return 1;
     } else if (bSent == -1){
-        printf("sending command\n");
+        printf("Error: sending command\n");
         return 1;
     }
 
@@ -154,7 +154,7 @@ int sendCommand(int sockfd, char * command){
     return 0;
 }
 
-int readReply(FILE * readSockect){
+int readServerReply(FILE * readSockect){
     long code;
     char *aux;
     
@@ -212,10 +212,10 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
-    struct data dataInfo;
+    struct urlData dataInfo;
     int sockfd, sockfdReceive;
 
-    if(parseData(argv[1], &dataInfo) != 0){
+    if(parseUrlData(argv[1], &dataInfo) != 0){
         printf("Error: Parsing input\n");
         return 1;
     }
@@ -226,23 +226,23 @@ int main(int argc, char **argv) {
     }
 
     FILE * readSockect = fdopen(sockfd, "r");
-    readReply(readSockect);
+    readServerReply(readSockect);
     
     // credentials
     char command[256];
     sprintf(command, "user %s\n", dataInfo.user);
 
-    sendCommand(sockfd,command);
-    readReply(readSockect);
+    sendCommandToServer(sockfd,command);
+    readServerReply(readSockect);
 
     sprintf(command, "pass %s\n",dataInfo.password);
 
-    sendCommand(sockfd,command);
-    readReply(readSockect);
+    sendCommandToServer(sockfd,command);
+    readServerReply(readSockect);
     
     // set mode
     sprintf(command, "pasv \n");
-    sendCommand(sockfd,command);
+    sendCommandToServer(sockfd,command);
 
     //read ip and port 
     char ip[32];
@@ -258,14 +258,14 @@ int main(int argc, char **argv) {
     }
 
     sprintf(command, "retr %s\r\n",dataInfo.url_path);
-    sendCommand(sockfd,command);
-    readReply(readSockect);
+    sendCommandToServer(sockfd,command);
+    readServerReply(readSockect);
 
     readFile(dataInfo.fileName, sockfdReceive);
 
     //close
     sprintf(command, "quit \r\n");
-    sendCommand(sockfd,command);
+    sendCommandToServer(sockfd,command);
     
     return 0;
 }

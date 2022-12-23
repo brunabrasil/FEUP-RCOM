@@ -52,7 +52,7 @@ int createDataPacket(unsigned char* packet, unsigned int nBytes, int index){
     buf[2] = nBytes/256;//L2
     buf[3] = nBytes%256;//L1
 
-    for(int i = 4; i < nBytes; i++){ //mudei isto, sera q da?
+    for(int i = 4; i < nBytes; i++){ 
         buf[i] = packet[i];
     }
 
